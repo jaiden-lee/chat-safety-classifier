@@ -170,7 +170,106 @@ All quality targets are evaluated at the single operating threshold.
 | O2 | Memory | Model + runtime fit on one T4 (16 GB) and on an 8 GB CPU node | Keeps the CPU option and cheap GPUs viable. |
 
 ## Estimates
+### Assumptions
+- d = 768, 12 layers, FFN width 4d. FP16 = 2 bytes per value.
+- Typical context n = 256 (the context builder fills the token budget in active
+  chats); worst case n = 512.
+- Attention uses a fused kernel (SDPA): the n × n score matrix is never written
+  to memory.
+- "Eager" = unoptimized PyTorch / Hugging Face (P1 baseline). "Fused" = QKV
+  stacked, GELU and element-wise ops folded into neighboring kernels (P2 target).
+- Only dominant terms are counted; estimates are ±2×.
+
+### Workload per message
+
+**FLOPS per message**1. Linear projections (W_q, W_v, W_k, W_o) = `8nd^2 per layer`
+2. FFN = `16nd^2 per layer`
+2. Attention matrix math = `4dn^2`
+
+Total flops = `288nd^2 + 48dn^2` per layer
+
+n=256 means: ~45.9 billion flops = ~45.9 GFlops
+n=512 means: ~96.6 billion flops = ~96.6 GFlops
+
+Most flops come not from attention, but mostly from the linear components/FFN
+
+**Bytes transferred per message**
+
+110M params * 2 bytes = 220MB for model weights
+
+**Activation traffic per layer** (unit: nd = n × d values)
+
+| Component | Eager | Fused | Notes |
+|---|---|---|---|
+| Q, K, V projections | 6 nd | 4 nd | HF uses three separate layers; fused reads input once |
+| Attention core | 4 nd | 4 nd | Reads Q, K, V; writes output |
+| Output projection | 2 nd | 2 nd | |
+| FFN (matmul → GELU → matmul) | 18 nd | 10 nd | Fused applies GELU inside the first matmul |
+| Residual adds + LayerNorms | 10 nd | ~2 nd | Mostly folded into neighbors when fused |
+| **Per layer** | **~40 nd** | **~22 nd** | |
+
+**Per message, batch 1**
+
+| Quantity | n = 256 | n = 512 |
+|---|---|---|
+| nd (FP16) | 0.39 MB | 0.79 MB |
+| FLOPs (170M·n + 36,864·n²) | ~46 GFLOP | ~97 GFLOP |
+| Weight bytes (read once per batch) | ~170 MB | ~170 MB |
+| Activation bytes, eager (40 nd × 12) | ~190 MB | ~380 MB |
+| Activation bytes, fused (22 nd × 12) | ~105 MB | ~210 MB |
+| Total bytes, eager / fused | ~360 / ~275 MB | ~550 / ~380 MB |
+| Intensity at batch 1, eager / fused | ~130 / ~170 FLOP/byte | ~175 / ~255 FLOP/byte |
+| Intensity ceiling at large batch, eager / fused | ~245 / ~440 FLOP/byte | ~255 / ~465 FLOP/byte |
+
+Model memory footprint (for O2): ~110M params including embeddings ≈ 220 MB in
+FP16. Per message, only n embedding rows are read (< 1 MB), so the embedding
+table is excluded from per-message traffic.
+
+### Scaling with batch size
+
+For a batch of B messages:
+- **FLOPs grow linearly:** B × F (F = FLOPs per message)
+- **Activation bytes grow linearly:** B × A (each message has its own activations)
+- **Weight bytes stay constant:** W (read once, shared by the whole batch)
+
+    intensity(B) = B·F / (W + B·A)
+
+- **Small B:** weights dominate the bytes, so intensity ≈ B·F/W, rising roughly
+  linearly with batch size.
+- **Large B:** activations dominate; the B's cancel and intensity approaches a
+  ceiling of F/A, the activations' own intensity.
+
+On a T4 (balance point ≈ 200 FLOP/byte), even batch 1 is near the balance
+point, and a batch of 2–4 is enough to become compute-bound. The eager ceiling
+(~245) sits barely above the balance point, so unfused execution stays partly
+memory-bound at any batch size. Fusion raises the ceiling to ~440–465, making
+large batches clearly compute-bound. Once compute-bound, time per batch grows
+linearly with B, so batches only need to be large enough to cross the balance
+point. Bigger batches add latency without adding throughput. However, low batches can still leave GPU cores underutilized, though larger batches do not necessarily increase intensity that much.
+
+### 4.3 Feasibility on a T4
+
+Hardware: ~65 TFLOP/s FP16 peak, ~320 GB/s memory bandwidth (verify against
+NVIDIA's spec sheet). Assumed achieved: 20–30 TFLOP/s compute, ~250 GB/s
+bandwidth. Eager overhead: ~250 kernel launches × ~10 µs ≈ 2–4 ms, plus
+tokenization and HTTP handling ≈ 1–2 ms.
+
+| Estimate | n = 256 | n = 512 | Requirement |
+|---|---|---|---|
+| Batch-1 latency (eager) | ~5–10 ms | ~7–13 ms | R1: p50 ≤ 15 ms ✓ / R3: p99 ≤ 100 ms ✓ |
+| Max throughput (compute-bound) | ~430–650 msg/s | ~205–310 msg/s | |
+| Sustainable at ~70% utilization | **~300–450 msg/s** | ~145–215 msg/s | **R4: ≥ 1,000 msg/s at risk (2–3× short)** |
+| Cost at ~$0.50/hr per T4 | ~$0.30–0.45 per 1M msgs | | R6: ≤ $1 per 1M ✓ |
+| Fleet size for R5 (30,000 msg/s) | ~65–100 T4s | | |
+
+**Conclusion:** latency and cost targets are feasible on a T4. Per-node
+throughput is the main risk. Candidate levers, evaluated in P2: a smaller or
+distilled model, a smaller token budget, INT8, avoiding re-encoding of context
+(§4.7), or a faster GPU (A10G/L4-class). The two least certain inputs are the
+achieved fraction of peak and per-kernel overhead; P1 measures both.
+
 ## Design Decisions
+
 ## Evaluation Plan
 ### 6.1 Datasets
 
