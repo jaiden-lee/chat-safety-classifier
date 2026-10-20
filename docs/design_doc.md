@@ -270,6 +270,101 @@ achieved fraction of peak and per-kernel overhead; P1 measures both.
 
 ## Design Decisions
 
+The system is a single, stateless scoring service called synchronously by the chat
+backend before each message is delivered. It does one thing: given a new message
+and its recent conversation, return allow or block within the latency budget.
+There are no workflow engines, background pipelines, or multi-step orchestration
+in the request path. Everything that isn't needed to make that decision (training,
+data generation, analysis) happens offline.
+
+Chat backend
+       │  POST /v1/score   (new message + recent channel messages)
+       ▼
+    ┌──────────────────────── Moderation service (one node) ────┐
+    │  API layer         validate request, start 100 ms deadline                                       │
+    │       ▼                                                                                                                    │
+    │  Context builder   select relevant messages, apply speaker tags, fit budget       │
+    │       ▼                                                                                                                    │
+    │  Tokenizer         context → segment A, new message → segment B                    │
+    │       ▼                                                                                                                    │
+    │  Dynamic batcher   queue; flush at max batch (tokens) or max wait                   │
+    │       ▼                                                                                                                    │
+    │  Model worker      fine-tuned encoder on GPU (FP16), one batch at a time        │
+    │       ▼                                                                                                                    │
+    │  Decision          score ≥ threshold → block, else allow                                         │
+    └────────────────────────────────────────────────┘
+       │  { decision, score, model_version }
+       ▼
+    Chat backend delivers or holds the message (holds on block, error, or timeout)
+
+    Metrics (per stage): latency, queue depth, batch size, input length, score.
+    Never raw text.
+
+**Request / response**
+
+    POST /v1/score
+    {
+      "message":  { "speaker_id": "a91f", "text": "..." },
+      "context":  [ { "speaker_id": "77c2", "text": "...", "ts": 1729370000,
+                      "reply_to_speaker": "a91f" }, ... ],   // last ≤ 50 msgs / 10 min
+      "channel_type": "group"                                   // or "direct"
+    }
+
+    → { "decision": "block", "score": 0.97, "model_version": "v0.3" }
+
+Speaker IDs are opaque; the service converts them to relative tags ([SELF], [U1], …)
+and never sees or logs real usernames.
+
+### 5.2 Context builder
+
+For each new message, select context in priority order until the token budget is
+reached:
+
+1. The new message (always included; segment B).
+2. Recent messages that mention or reply to the author ([SELF]).
+3. [SELF]'s own recent messages.
+4. The most recent other messages in the channel.
+
+- **Budget:** 256 tokens target, 512 hard cap (BERT's maximum).
+- **Lookback:** candidates come from the last 50 messages or last 10 minutes,
+  whichever is smaller.
+- **Format:** selected messages in chronological order with relative speaker tags,
+  plus a leading channel-type token ([DM] / [GROUP]).
+
+
+### 5.3 Decisions
+
+| # | Decision | Choice | Alternatives considered | Rationale |
+|---|---|---|---|---|
+| D1 | What is scored | The newest message, judged with its conversation context; binary label + score | Score the whole conversation; per-type labels | The platform acts on the incoming message, so that's what gets judged. Binary keeps evaluation simple; per-type labels are a later extension. |
+| D2 | Model family | Small fine-tuned encoder (BERT-base to start; distilled variants evaluated in P2) | LLM judge; regex + PII tagger; per-message classifier without context | Fits the latency and cost budget (§4). An LLM is roughly two orders of magnitude more compute per message (§4.6). Rules fail on obfuscated and cross-message cases (Q2). Context is required for the core cases. |
+| D3 | Multi-party handling | One model call per message, with relative speaker tags | One call per pair of participants | Pairwise grows with participants²; a single call with speaker roles captures who said what at constant cost. Blocking sharing in a group is as important as in a DM. |
+| D4 | Context selection | Rule-based builder under a token budget (§5.2) | Fixed last-k messages; larger window | Catches long-range exchanges in busy chats without growing n; attention cost grows with n². |
+| D5 | Input encoding | Context as segment A, new message as segment B (BERT token-type IDs) | Concatenate with a separator only | Uses an existing BERT feature to mark exactly which message is being judged. |
+| D6 | Service state | Stateless: the backend sends candidate context with every request | Service keeps a per-channel buffer (in memory or Redis) | Simpler, restart-safe, easy to scale horizontally. Cost: larger requests (~5 KB), negligible next to inference. |
+| D7 | Request path | Synchronous call before delivery | Async moderation after delivery | Contact info can't be "unsent" once seen; blocking must happen first. |
+| D8 | Failure behavior | Fail-closed: hold the message on error or after 100 ms | Fail-open; split by channel type | Safety over availability (R7). Consequence: the service is on chat's critical path. |
+| D9 | Serving stack | Python + FastAPI, in-process dynamic batcher (asyncio queue), one model worker per GPU | Triton Inference Server, TorchServe; gRPC | Few moving parts, and building the batcher is a learning goal. Triton (which has dynamic batching built in) is a P3 stretch comparison. HTTP/JSON first; gRPC if serialization shows up in profiles. |
+| D10 | Batching policy | Dynamic batching capped by total tokens per batch, with length bucketing; max batch from the throughput-vs-batch sweep (knee, capped at ~20 ms per batch) | Fixed batch size; no batching | Adapts to traffic, keeps batch time predictable for variable-length inputs, and avoids padding short messages to the longest one. |
+| D11 | Hardware | NVIDIA T4 as baseline; CPU path measured for comparison | A10G / L4-class GPUs; CPU only | Cheapest GPU that meets the latency and cost targets (§4.3). R4 throughput is at risk on a T4, so a faster GPU is the documented fallback. |
+| D12 | Runtime and precision | P1: eager PyTorch, FP16. P2: torch.compile and/or ONNX Runtime; INT8 evaluated | TensorRT from the start | Start simple to get a measured baseline, then optimize against it. Every optimization must pass Q5. |
+| D13 | Logging | Scores, decisions, lengths, and timings only | Log full requests for debugging | Required by O1/G6: the service handles personal information by definition. Debugging uses synthetic replays. |
+| D14 | Data | Synthetic multi-party conversations + public PII datasets; LLMs used offline only for generation and labeling | Real chat logs | No real user data, and none from minors. LLMs never in the request path. |
+| D15 | Deployment | Single node; containerized from P3 | Autoscaling, multi-region | Out of scope (non-goals). Fleet scale is estimated in §4, not built. |
+
+### 5.4 Open decisions
+
+- **Context re-encoding.** With a sliding context window, each message is encoded
+  about once per later message that includes it. Start by re-encoding the full
+  window per request (simplest). Alternative: encode each message once, cache
+  per-message embeddings, and combine them with a small model on top. Decide after
+  §4.7's estimate and P2 measurements. This is the largest potential throughput
+  lever if R4 is missed.
+- **Final model size.** BERT-base vs. a distilled 6-layer model, decided by the
+  P2 quality-vs-speed tradeoff under Q5.
+- **GPU class.** T4 vs. A10G/L4, decided by P3 cost per million messages at the
+  measured throughput.
+
 ## Evaluation Plan
 ### 6.1 Datasets
 
@@ -391,6 +486,102 @@ A model that meets Q1 overall but fails one slice badly should be visible here.
 
 ## Predictions
 ## Observability
+Goals: detect SLO violations and capacity problems quickly, and notice model
+degradation without ever recording message content. This section defines the
+baseline; P4 implements and extends it.
+
+### 8.1 Metrics (Prometheus)
+
+| Metric | Type | Labels | Purpose |
+|---|---|---|---|
+| `request_latency_seconds` | Histogram | `stage` (queue, batch_wait, preprocess, inference, postprocess, total), `channel_type` | p50/p99 per stage; shows where latency goes (PR9) |
+| `requests_total` | Counter | `decision` (allow, block, timeout, error), `channel_type` | Throughput, block rate, timeout and error rates |
+| `batch_size` | Histogram | `unit` (messages, tokens) | Whether batches form as designed under real traffic |
+| `queue_depth` | Gauge | — | Early sign of overload (sustained growth = above capacity) |
+| `input_tokens` | Histogram | — | Context-length distribution; drift signal; padding cost |
+| `context_messages_selected`, `speakers_in_context` | Histogram | — | Context builder behavior |
+| `score` | Histogram | — | Model output distribution; primary drift signal |
+| `model_info` | Gauge | `model_version`, `runtime` | Ties every metric to the deployed model |
+| GPU utilization, VRAM used | Gauge | — | From NVIDIA DCGM or nvidia-smi; capacity context |
+
+Structured logs carry a request ID, per-stage timings, decision, score, and token
+count. **Never raw text, speaker IDs, or usernames** (O1).
+
+### 8.2 Dashboards (Grafana)
+
+1. **Latency:** p50/p95/p99 total and per stage, against the R1/R2 lines.
+2. **Load:** requests/s, queue depth, batch size, GPU utilization.
+3. **Decisions:** block rate, timeout rate, error rate.
+4. **Distributions:** score, input tokens, speakers in context, compared to a
+   reference week.
+
+### 8.3 Alerts
+
+| Alert | Condition | Why it matters |
+|---|---|---|
+| Latency SLO | p99 total > 50 ms for 5 min | Users feel it; risk of timeouts |
+| Held messages | (timeout + error) rate > 0.1% for 5 min | Under fail-closed, every one is a delayed or held message |
+| Overload | Queue depth growing for 2 min | Traffic above capacity; latency will explode |
+| Block-rate shift | Block rate > 2× or < 0.5× its 7-day baseline | Model, data, or traffic changed |
+| Score drift | Score distribution shift vs. reference (PSI > 0.2) | Possible drift or new evasion pattern |
+| Input drift | Token-length distribution shift (PSI > 0.2) | Context builder or traffic change; affects cost and latency |
+| Canary failure | Canary recall or FPR outside its expected band | Direct evidence of quality regression |
+
+### 8.4 Quality monitoring without production labels
+
+Real production labels aren't available, so quality is watched two ways:
+- **Proxies:** score distribution, block rate, input distributions (above).
+  These detect *change*, not correctness.
+- **Canary set:** a fixed, labeled synthetic set (positives, hard positives,
+  hard negatives) replayed through the live service on a schedule. Recall and FPR
+  on the canary are tracked over time, which catches regressions from deploys,
+  runtime changes, or bugs in the context builder. It cannot catch new real-world
+  evasion patterns that the synthetic set doesn't contain.
+
 ## Milestones
+### Summary
+
+| Milestone | Weeks | Delivers | Verifies |
+|---|---|---|---|
+| P0 Design doc | 2 | This document: requirements, estimates, predictions | — |
+| P1a Data, baselines, first model | 3–5 | Synthetic dataset, rules baseline, fine-tuned BERT-base, evaluation harness | Q1–Q4 |
+| P1b Baseline service | 5 | Unoptimized end-to-end service with per-stage instrumentation | R1, R7, latency predictions |
+| P2 Profile and optimize | 6–8 | Profiling, fusion, compression, batch sweep, context re-encoding decision | Q5, revised §4 estimates |
+| P3 Batching and load test | 9–10 | Dynamic batcher, open-loop load tests, CPU vs. GPU cost | R2–R6 |
+| P4 Monitoring and writeup | 10–11 | Metrics, dashboard, drift alerts, runbook, public writeup | O1, full Results |
+| P5 Triton comparison (stretch) | 11–12 | Model worker replaced by Triton; head-to-head comparison | R2, R4 vs. P3 |
+
 ## Risks/Open Questions
+### 10.1 Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Synthetic data doesn't reflect real chat, so quality is overestimated | High | High | Many generation templates and styles; hard negatives; template-level split (§6.1); manual review of samples; stated as a limitation (§6.8) |
+| Q1's FPR ≤ 0.1% is out of reach | Medium | Medium | Report the measured tradeoff; improve hard-negative data; renegotiate explicitly rather than loosening silently |
+| R4 throughput missed on a T4 (predicted: PR7) | High | Medium | P2 levers: fusion, distillation, INT8, smaller budget, encode-once context; faster GPU as fallback (D11) |
+| Fail-closed puts the service on chat's critical path: an outage or slowdown stops chat | Medium | High | 100 ms deadline; overload tests in P3; capacity headroom (~70% load); alerts on held-message rate |
+| Context re-encoding dominates compute | High | Medium | Measured and decided in P2 (§5.4, PR15) |
+| Mixed context lengths inflate p99 through padding | Medium | Medium | Token-capped batches with length bucketing (D10); measured in P3 |
+| Label ambiguity (e.g., is an in-game username "contact info"?) leads to inconsistent data | Medium | High | Written labeling guidelines with worked examples before generating data; ambiguous cases decided explicitly |
+| LLM-generated data inherits the generator's style and blind spots | Medium | Medium | Multiple generators or prompts; rules- and template-based generation for hard cases; scope limited to contact-information exchange |
+| Measurement error (closed-loop load generation, network latency, warm-up) | Medium | High | Methodology in §6.7: open-loop Poisson arrivals, co-located generator, warm-up, ≥ 10,000 requests per load level |
+| Evasion tactics change after deployment | High | Medium | Score and block-rate drift alerts, canary set (§8.4); a full solution is out of scope |
+| P1a (data + model) runs long and blocks serving work | Medium | Medium | P1b proceeds with the rules baseline as a stand-in model (§9) |
+| Cloud GPU quota or cost overrun | Medium | Low | Request quota early; billing alarms; stop instances when idle |
+
+### 10.2 Open questions
+
+- **Real-world positive rate (π).** Unknown; implied precision is reported at
+  0.1% and 1% as scenarios.
+- **In-game identifiers.** Is sharing an in-game username (on-platform) acceptable?
+  Current assumption: yes, only off-platform contact is targeted. Needs to be
+  fixed in the labeling guidelines.
+- **Context builder parameters.** Are 256 tokens and a 50-message / 10-minute
+  lookback enough for busy group chats? Measured via recall vs. budget in P2.
+- **Re-encode vs. encode-once** (§5.4, PR15).
+- **GPU class:** T4 vs. A10G/L4, decided on measured cost per million messages
+  (P3).
+- **A "hold for review" tier.** A middle band of scores sent to human review would
+  change the cost model: precision and score calibration would then matter
+  (§6.2). Out of scope now; noted for future work.
 ## Results (TBD)
