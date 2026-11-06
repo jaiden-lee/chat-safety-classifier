@@ -16,7 +16,7 @@ control over values, obfuscation, and tags from code.
  1. spec           2. LLM call            3. validate           4. fill (x3)            5. rows
  ───────────       ────────────           ───────────           ──────────────          ──────────
  "group chat,  ──> claude -p writes  ──>  parse JSON, check ──> replace slots with ──>  one model
-  4 speakers,      10 conversations       labels, slots, no     fake values; some       input per
+  4 speakers,      20 conversations       labels, slots, no     fake values; some       input per
   phone/split"     with slots + labels    leaked real values    disguised               message
                                                                                         (Step 4)
  generate.py       llm_backend.py         generate.py           fill.py                 context.py
@@ -25,14 +25,18 @@ control over values, obfuscation, and tags from code.
 1. **Spec.** For each conversation, `generate.py` samples what it should look like: DM or
    group, speaker count, length, game genre, chat style, and a *focus*. A focus is either a
    positive to include (e.g. "a phone number split across messages") or a look-alike negative
-   (e.g. "players share lobby codes"). One batch = 10 specs.
+   (e.g. "players share lobby codes"). Positive conversations get 2-3 separate exchanges,
+   so positives aren't too sparse. Specs are sampled by code from fixed lists, seeded per
+   batch: different batches differ, and rerunning a batch reproduces it. One batch = 20 specs.
 2. **LLM call.** The specs, slot rules, and the full labeling guidelines are inserted into
-   `prompts/skeleton_v1.txt`. `llm_backend.py` sends it to `claude -p` (Sonnet). The response
-   is 10 conversations, each message with text and a label, e.g.
+   `prompts/skeleton_v1.txt`. `llm_backend.py` sends it to `claude -p` (Sonnet, low effort).
+   The response is 20 conversations, each message with text and a label, e.g.
    `{"speaker": "B", "text": "text me {PHONE}", "label": 1, "categories": ["phone"], ...}`.
 3. **Validate.** Each conversation is checked: valid JSON, valid labels and tags, known slot
    kinds and platforms, and no real-looking phone numbers, emails, or links written outside a
-   slot. Failing conversations are dropped (the reason is logged). Survivors are **skeletons**.
+   slot. Failing conversations are dropped (the reason is logged). Some tag mistakes are
+   fixed by rule instead, e.g. a message with a complete phone number can't be
+   `cross_message`. Survivors are **skeletons**.
 4. **Fill.** `fill.py` turns each skeleton into 3 concrete conversations by sampling slot
    values (`primitives/values.py`). Fill 0 keeps values plain except slots the LLM marked `!`;
    fills 1-2 also disguise contact values at random (`primitives/obfuscate.py`) and update the
@@ -42,8 +46,9 @@ control over values, obfuscation, and tags from code.
    one model input via the context builder: earlier messages as context, the message as target.
 
 **Where labels come from:** the LLM labels each message in step 2, because it knows what it
-meant each message to be. Code only adjusts the `obfuscated` tag in step 4. A separate audit
-(Step 4) has a second LLM relabel a sample to check the first.
+meant each message to be. Code corrects tags only by fixed rules (step 3) and sets the
+`obfuscated` tag when it disguises a value (step 4). A sample is reviewed by hand; there is no
+second LLM labeling pass.
 
 ## Files
 
@@ -58,15 +63,15 @@ meant each message to be. Code only adjusts the `obfuscated` tag in step 4. A se
 | `primitives/obfuscate.py` | Disguise transforms and splitting a value across messages | Library |
 
 ```
-uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 2   # steps 1-3
-uv run python -m modeling.data.skeletons.preview  --out data/pilot --fills 3     # step 4 + preview
+uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 4 --workers 2  # steps 1-3
+uv run python -m modeling.data.skeletons.preview  --out data/pilot --fills 3                # step 4 + preview
 ```
 
 ## Output files (under `--out`, gitignored)
 
 | Path | Contents | Used for |
 |---|---|---|
-| `raw/<batch>.json` | Log of one LLM call: the 10 specs sent, the LLM's response text exactly as returned, model, duration, and why any conversation was rejected | Debugging and auditing generation |
+| `raw/<batch>.json` | Log of one LLM call: the specs sent, the LLM's response text exactly as returned, model, duration, token counts, rejected conversations and why, tags fixed by rule | Debugging and auditing generation |
 | `skeletons/<batch>.jsonl` | The validated conversations from that response, one per line, slots unfilled | **The data**; input to filling |
 | `conversations.jsonl` | Every fill of every skeleton (slots filled) | Mock dataset; becomes the dataset in Step 4 |
 | `preview.md` | Each skeleton, its fills, and the model's view of one fill | Human review |

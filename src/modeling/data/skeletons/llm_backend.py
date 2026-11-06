@@ -50,6 +50,7 @@ class ClaudeCLIBackend:
         timeout_s: float = 900,
         max_retries: int = 4,
         backoff_s: float = 30,
+        effort: str | None = "low",
     ) -> None:
         resolved = shutil.which(executable)
         if resolved is None:
@@ -58,6 +59,7 @@ class ClaudeCLIBackend:
         self.timeout_s = timeout_s
         self.max_retries = max_retries
         self.backoff_s = backoff_s
+        self.effort = effort  # Claude Code --effort: low, medium, high, xhigh, max
         # Run outside the repo so no project CLAUDE.md or settings leak into generation.
         self.cwd = tempfile.gettempdir()
 
@@ -71,6 +73,8 @@ class ClaudeCLIBackend:
             "--no-session-persistence",
             "--system-prompt", system,
         ]
+        if self.effort:
+            cmd += ["--effort", self.effort]
         last_error = ""
         for attempt in range(self.max_retries + 1):
             if attempt:

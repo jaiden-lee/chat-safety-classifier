@@ -4,9 +4,9 @@ Last Updated: 11/05/2026
 Status: Draft (pending review)
 
 These guidelines define the label for every example in the training, validation,
-and test sets. They are written to be used in three places: by the LLM prompts
-that generate synthetic conversations, by the LLM judge that audits labels, and
-by humans reviewing samples. When a case is unclear, add it to the
+and test sets. They are written to be used in two places: by the LLM prompts
+that generate (and label) synthetic conversations, and by humans reviewing
+samples. When a case is unclear, add it to the
 [decisions log](#7-borderline-decisions-log) instead of deciding it silently.
 
 The version number above is stamped into every generated example

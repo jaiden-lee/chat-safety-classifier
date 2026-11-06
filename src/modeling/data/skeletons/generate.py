@@ -1,7 +1,8 @@
 """Generate labeled conversation skeletons with an LLM (design doc §6.1, guidelines).
 
-One batch = one LLM call that writes `per_batch` conversations, each from a sampled spec
-(channel type, speakers, length, game, chat style, and what the conversation should contain).
+One batch = one LLM call that writes `per_batch` conversations, each from a spec sampled in
+code (channel type, speakers, length, game, chat style, and what the conversation should
+contain). Positive conversations ask for 2-3 separate exchanges, so positives aren't too sparse.
 Responses are validated message by message; conversations that break a rule are dropped and
 the reason is recorded. Each batch writes:
 
@@ -10,7 +11,7 @@ the reason is recorded. Each batch writes:
 
 Batches whose skeleton file already exists are skipped, so an interrupted run can be resumed.
 
-    uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 2
+    uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 4 --workers 2
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ import argparse
 import json
 import random
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from string import Template
@@ -123,14 +125,21 @@ class Spec:
     game: str
     style: str
     focus: str  # "positive" or "negative"
-    target: str  # category/hard_tag for positives, neg_type for negatives
-    description: str
+    targets: tuple[str, ...]  # per exchange: category/hard_tag (positive) or neg_type
+    descriptions: tuple[str, ...]  # per exchange, same order as targets
 
     def render(self) -> str:
         channel = "one-to-one DM" if self.channel_type == ChannelType.DIRECT else "group chat"
-        return (f"Spec {self.index}: {channel}, {self.n_speakers} speakers, about "
-                f"{self.n_messages} messages. Game: {self.game}. Style: {self.style}.\n"
-                f"  Include: {self.description}. Target labels: {self.target}.")
+        head = (f"Spec {self.index}: {channel}, {self.n_speakers} speakers, about "
+                f"{self.n_messages} messages. Game: {self.game}. Style: {self.style}.")
+        if len(self.descriptions) == 1:
+            return f"{head}\n  Include: {self.descriptions[0]}. Target labels: {self.targets[0]}."
+        parts = "\n".join(f"    {i}. {d}. Target labels: {t}."
+                          for i, (d, t) in enumerate(zip(self.descriptions, self.targets,
+                                                         strict=True), 1))
+        return (f"{head}\n  Include these {len(self.descriptions)} separate exchanges, spread "
+                f"through the conversation with ordinary chat between them (they can involve "
+                f"different speakers):\n{parts}")
 
 
 def sample_specs(rng: random.Random, n: int) -> list[Spec]:
@@ -138,21 +147,25 @@ def sample_specs(rng: random.Random, n: int) -> list[Spec]:
     for i in range(1, n + 1):
         direct = rng.random() < 0.35
         if rng.random() < POSITIVE_SHARE:
-            category, hard_tag, description = rng.choice(POSITIVE_FOCUSES)
-            focus, target = "positive", f"{category}/{hard_tag}"
+            chosen = rng.sample(POSITIVE_FOCUSES, rng.choice((2, 2, 3)))
+            focus = "positive"
+            targets = tuple(f"{c}/{t}" for c, t, _ in chosen)
+            descriptions = tuple(d for _, _, d in chosen)
+            n_messages = rng.randint(10, 25)
         else:
             neg_type, description = rng.choice(NEGATIVE_FOCUSES)
-            focus, target = "negative", neg_type
+            focus, targets, descriptions = "negative", (neg_type,), (description,)
+            n_messages = rng.randint(6, 25)
         specs.append(Spec(
             index=i,
             channel_type=ChannelType.DIRECT if direct else ChannelType.GROUP,
             n_speakers=2 if direct else rng.randint(3, 6),
-            n_messages=rng.randint(6, 25),
+            n_messages=n_messages,
             game=rng.choice(GAMES),
             style=rng.choice(STYLES),
             focus=focus,
-            target=target,
-            description=description,
+            targets=targets,
+            descriptions=descriptions,
         ))
     return specs
 
@@ -179,14 +192,15 @@ _LEAK_PATTERNS = [
 
 def parse_response(
     text: str, specs: list[Spec], batch_id: str, template_id: str, model: str
-) -> tuple[list[Conversation], list[str]]:
-    """Valid skeletons from an LLM response, plus one error string per rejected conversation."""
+) -> tuple[list[Conversation], list[str], list[str]]:
+    """Valid skeletons from an LLM response, one error per rejected conversation, and notes on
+    tags that were corrected automatically."""
     try:
         items = json.loads(_json_array(text))
     except (ValueError, json.JSONDecodeError) as e:
-        return [], [f"response is not a JSON array: {e}"]
+        return [], [f"response is not a JSON array: {e}"], []
     by_index = {s.index: s for s in specs}
-    skeletons, errors, seen = [], [], set()
+    skeletons, errors, fixes, seen = [], [], [], set()
     for item in items:
         spec = by_index.get(item.get("spec") if isinstance(item, dict) else None)
         if spec is None or spec.index in seen:
@@ -194,19 +208,37 @@ def parse_response(
             continue
         seen.add(spec.index)
         try:
-            skeletons.append(_to_skeleton(item, spec, batch_id, template_id, model))
+            skeleton, notes = _to_skeleton(item, spec, batch_id, template_id, model)
         except ValueError as e:
             errors.append(f"spec {spec.index}: {e}")
+            continue
+        skeletons.append(skeleton)
+        fixes += [f"spec {spec.index}: {n}" for n in notes]
     errors += [f"spec {i}: missing from response" for i in sorted(set(by_index) - seen)]
-    return skeletons, errors
+    return skeletons, errors, fixes
+
+
+# Slots whose complete (non-fragment) value is identifying on its own (guidelines §5.2).
+_SELF_EVIDENT_KINDS = {"PHONE", "EMAIL", "LINK"}
+
+
+def _fix_tags(text: str, label, hard_tags: list[str]) -> tuple[list[str], str | None]:
+    """Remove `cross_message` from a positive that is positive by itself (guidelines v1.1)."""
+    if label != 1 or "cross_message" not in hard_tags:
+        return hard_tags, None
+    for m in SLOT_RE.finditer(text):
+        if m["kind"] in _SELF_EVIDENT_KINDS and m["part"] is None:
+            fixed = [t for t in hard_tags if t != "cross_message"] or ["plain"]
+            return fixed, f"removed cross_message from {text!r} (complete {m['kind']})"
+    return hard_tags, None
 
 
 def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
-                 model: str) -> Conversation:
+                 model: str) -> tuple[Conversation, list[str]]:
     raw_messages = item.get("messages")
     if not isinstance(raw_messages, list) or len(raw_messages) < 4:
         raise ValueError("fewer than 4 messages")
-    messages = []
+    messages, notes = [], []
     for j, m in enumerate(raw_messages):
         text, speaker = m.get("text"), m.get("speaker")
         if not isinstance(text, str) or not text.strip():
@@ -219,9 +251,12 @@ def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
         for pattern, what in _LEAK_PATTERNS:
             if pattern.search(outside_slots):
                 raise ValueError(f"message {j}: {what} written outside a slot: {text!r}")
+        hard_tags, note = _fix_tags(text, m.get("label"), list(m.get("hard_tags") or ()))
+        if note:
+            notes.append(f"message {j}: {note}")
         messages.append(Message(
             speaker_id=speaker, text=text, label=m.get("label"),
-            categories=m.get("categories") or (), hard_tags=m.get("hard_tags") or (),
+            categories=m.get("categories") or (), hard_tags=hard_tags,
             neg_type=m.get("neg_type"),
         ))  # Message validates the label and tags
     return Conversation(
@@ -230,7 +265,7 @@ def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
         messages=tuple(messages),
         provenance=Provenance(Source.LLM_SKELETON, skeleton_id=f"{batch_id}-c{spec.index:02d}",
                               template_id=template_id, generator_model=model),
-    )
+    ), notes
 
 
 def _json_array(text: str) -> str:
@@ -254,19 +289,25 @@ def run_batch(
     specs = sample_specs(random.Random(f"{template_id}:{seed}:{batch_index}"), per_batch)
     prompt = render_prompt(template_id, specs)
     result = backend.complete(prompt, model=model, system=SYSTEM_PROMPT)
-    skeletons, errors = parse_response(result.text, specs, batch_id, template_id, result.model)
+    skeletons, errors, fixes = parse_response(result.text, specs, batch_id, template_id,
+                                              result.model)
+    usage = (result.raw.get("modelUsage") or {}).get(result.model, {})
 
     raw_path = out_dir / "raw" / f"{batch_id}.json"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_path.write_text(json.dumps({
         "batch_id": batch_id, "template_id": template_id, "seed": seed,
         "requested_model": model, "model": result.model, "duration_s": result.duration_s,
+        "output_tokens": usage.get("outputTokens"), "thinking_tokens": usage.get("thinkingTokens"),
         "specs": [asdict(s) for s in specs], "n_valid": len(skeletons), "errors": errors,
-        "response": result.text,
+        "fixes": fixes, "response": result.text,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     write_conversations(skeleton_path, skeletons)
-    print(f"{batch_id}: {len(skeletons)}/{len(specs)} valid ({result.model}, "
-          f"{result.duration_s:.0f}s)" + "".join(f"\n  - {e}" for e in errors))
+    n_pos = sum(m.label == 1 for sk in skeletons for m in sk.messages)
+    n_msg = sum(len(sk.messages) for sk in skeletons)
+    print(f"{batch_id}: {len(skeletons)}/{len(specs)} valid, {n_pos}/{n_msg} messages positive "
+          f"({result.model}, {result.duration_s:.0f}s, {usage.get('outputTokens')} output tokens)"
+          + "".join(f"\n  - {e}" for e in errors + fixes), flush=True)
     return skeleton_path
 
 
@@ -274,17 +315,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--batches", type=int, default=1)
-    parser.add_argument("--per-batch", type=int, default=10)
+    parser.add_argument("--per-batch", type=int, default=20)
     parser.add_argument("--models", default="sonnet", help="comma-separated, cycled per batch")
+    parser.add_argument("--effort", default="low", help="Claude Code --effort level")
+    parser.add_argument("--workers", type=int, default=1, help="batches run in parallel")
     parser.add_argument("--template", default="skeleton_v1")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
-    backend = ClaudeCLIBackend()
+    backend = ClaudeCLIBackend(effort=args.effort)
     models = args.models.split(",")
-    for b in range(args.batches):
-        run_batch(backend, args.out, args.template, args.seed, b, args.per_batch,
-                  models[b % len(models)])
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        list(pool.map(
+            lambda b: run_batch(backend, args.out, args.template, args.seed, b, args.per_batch,
+                                models[b % len(models)]),
+            range(args.batches),
+        ))
+
 
 if __name__ == "__main__":
     main()

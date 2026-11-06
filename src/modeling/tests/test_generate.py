@@ -41,7 +41,7 @@ def test_prompt_documents_every_slot_kind_and_fills_all_placeholders():
 
 
 def test_parse_valid_response_and_report_missing_spec():
-    skeletons, errors = gen.parse_response(_response([GOOD]), _specs(), "b0", "t1", "haiku")
+    skeletons, errors, _ = gen.parse_response(_response([GOOD]), _specs(), "b0", "t1", "haiku")
     assert len(skeletons) == 1
     sk = skeletons[0]
     assert sk.conversation_id == "b0-c01" and sk.provenance.skeleton_id == "b0-c01"
@@ -56,18 +56,18 @@ def test_rejects_leaked_contact_info_bad_labels_and_bad_slots():
         ("join discord.gg/abc123", "link"),
         ("add {HANDLE:myspace}", "unknown platform"),
     ]:
-        skeletons, errors = gen.parse_response(
+        skeletons, errors, _ = gen.parse_response(
             _response([_with_text(text)]), _specs(1), "b0", "t1", "haiku")
         assert skeletons == [] and reason in errors[0], (text, errors)
 
     bad_label = json.loads(json.dumps(GOOD))
     bad_label["messages"][0] = {"speaker": "A", "text": "gg", "label": 1}  # positive, no tags
-    skeletons, errors = gen.parse_response(_response([bad_label]), _specs(1), "b", "t", "m")
+    skeletons, errors, _ = gen.parse_response(_response([bad_label]), _specs(1), "b", "t", "m")
     assert skeletons == [] and errors
 
 
 def test_non_json_response():
-    skeletons, errors = gen.parse_response("sorry, I can't", _specs(1), "b", "t", "m")
+    skeletons, errors, _ = gen.parse_response("sorry, I can't", _specs(1), "b", "t", "m")
     assert skeletons == [] and "not a JSON array" in errors[0]
 
 
@@ -96,3 +96,27 @@ def test_main_model_ignores_claude_code_side_calls():
                                "claude-sonnet-5-5": {"outputTokens": 6000}}}
     assert _main_model(response, "sonnet") == "claude-sonnet-5-5"
     assert _main_model({}, "sonnet") == "sonnet"
+
+
+def test_positive_specs_ask_for_several_exchanges():
+    specs = gen.sample_specs(random.Random(1), 200)
+    positives = [s for s in specs if s.focus == "positive"]
+    assert positives and all(len(s.targets) in (2, 3) for s in positives)
+    assert all(len(set(s.descriptions)) == len(s.descriptions) for s in positives)
+    assert all(len(s.targets) == 1 for s in specs if s.focus == "negative")
+    assert "separate exchanges" in positives[0].render()
+
+
+def test_complete_phone_is_not_cross_message_but_fragment_is():
+    item = json.loads(json.dumps(GOOD))
+    item["messages"][1] = {"speaker": "B", "text": "sure {PHONE}", "label": 1,
+                           "categories": ["phone"], "hard_tags": ["cross_message"]}
+    item["messages"][2] = {"speaker": "A", "text": "{PHONE#2~1/2}", "label": 1,
+                           "categories": ["phone"], "hard_tags": ["cross_message"]}
+    item["messages"][3] = {"speaker": "A", "text": "{PHONE#2~2/2}", "label": 1,
+                           "categories": ["phone"], "hard_tags": ["cross_message"]}
+    skeletons, errors, fixes = gen.parse_response(_response([item]), _specs(1), "b", "t", "m")
+    assert errors == [] and len(fixes) == 1
+    msgs = skeletons[0].messages
+    assert msgs[1].hard_tags == ("plain",)
+    assert msgs[2].hard_tags == ("cross_message",) and msgs[3].hard_tags == ("cross_message",)
