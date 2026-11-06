@@ -8,6 +8,8 @@ A skeleton is a `Conversation` whose message texts contain slots (prompt: skelet
 - `~i/k` inserts fragment i of k of that value (`split_value`), for split-across-messages cases.
 - `!` disguises the value (`obfuscate`). Fills can also disguise unmarked contact slots in
   positive messages at `obfuscation_rate`, so one skeleton yields plain and obfuscated variants.
+  All disguised slots in one message use the same transforms where they apply (one person,
+  one style), e.g. "snap" and the handle both get look-alike characters.
 
 Whenever a positive message gets a disguised value, its hard tags gain `obfuscated` (and lose
 `plain`), so the tag always matches the text.
@@ -21,7 +23,7 @@ import random
 import re
 from dataclasses import dataclass
 
-from modeling.data.primitives.obfuscate import obfuscate, split_value
+from modeling.data.primitives.obfuscate import applicable, obfuscate, split_value
 from modeling.data.primitives.values import PLATFORMS, ValueSampler
 from modeling.schema import Conversation, HardTag, Message
 
@@ -110,9 +112,10 @@ def fill_conversation(
     messages = []
     for msg in skeleton.messages:
         disguised = False
+        style: list[str] = []  # transforms of the message's first disguise, reused for the rest
 
         def replace(m: re.Match, msg: Message = msg) -> str:
-            nonlocal disguised
+            nonlocal disguised, style
             slot = Slot.from_match(m)
             value = value_for(slot)
             wanted = slot.obfuscate or (
@@ -120,11 +123,9 @@ def fill_conversation(
                 and rng.random() < obfuscation_rate
             )
             if wanted and slot.kind in OBFUSCATABLE_KINDS:
-                try:
-                    value = obfuscate(value, rng).text
-                    disguised = True
-                except ValueError:  # nothing applies to this value; keep it plain
-                    pass
+                out = _disguise(value, style, rng)
+                if out is not None:
+                    value, style, disguised = out.text, list(out.transforms), True
             return value
 
         text = SLOT_RE.sub(replace, msg.text)
@@ -150,6 +151,20 @@ def fill_skeleton(
         fill_conversation(skeleton, k, obfuscation_rate if k > 0 else 0.0)
         for k in range(n_fills)
     ]
+
+
+def _disguise(value: str, style: list[str], rng: random.Random):
+    """Obfuscate with the message's existing style where it applies, else a random one.
+    Returns None if nothing can disguise the value."""
+    names = [t for t in style if t in applicable(value)]
+    for attempt in (names, None):
+        if attempt == []:
+            continue
+        try:
+            return obfuscate(value, rng, attempt)
+        except ValueError:
+            continue
+    return None
 
 
 def _splittable_value(

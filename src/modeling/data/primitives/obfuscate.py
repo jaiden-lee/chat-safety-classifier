@@ -175,12 +175,14 @@ TRANSFORMS: dict[str, Transform] = {t.name: t for t in [
     Transform("separators", lambda v: len(v.replace(" ", "")) >= 3, separators),
 ]}
 
-# Pairs that combine badly: spelled-out and keycap digits replace the same characters, and
-# separators on top of spelled words or keycaps just scatter letters and emoji.
+# Pairs that combine badly: spelled-out and keycap digits replace the same characters,
+# separators on top of spelled words or keycaps just scatter letters and emoji, and leet plus
+# separators is unreadable ("$*n**a***p").
 _EXCLUSIVE = {frozenset(p) for p in [
     ("spelled_digits", "keycap"), ("spelled_digits", "separators"), ("keycap", "separators"),
-    ("homoglyph", "keycap"),
+    ("homoglyph", "keycap"), ("leet", "separators"),
 ]}
+TWO_TRANSFORM_RATE = 0.15
 
 
 def applicable(value: str) -> list[str]:
@@ -191,7 +193,8 @@ def applicable(value: str) -> list[str]:
 def obfuscate(
     value: str, rng: random.Random, transforms: list[str] | None = None, max_transforms: int = 2
 ) -> Obfuscated:
-    """Apply `transforms` in canonical order, or 1-`max_transforms` random applicable ones.
+    """Apply `transforms` in canonical order, or random applicable ones (usually one; two at
+    TWO_TRANSFORM_RATE, never an _EXCLUSIVE pair).
 
     Explicit transforms must all apply. Random picks skip a second transform that no longer
     applies after the first. Raises ValueError if the result would equal the input.
@@ -256,7 +259,7 @@ def _pick(value: str, rng: random.Random, max_transforms: int) -> list[str]:
     candidates = applicable(value)
     if not candidates:
         raise ValueError(f"no transform applies to {value!r}")
-    k = 1 if max_transforms == 1 or rng.random() < 0.7 else 2
+    k = 2 if max_transforms >= 2 and rng.random() < TWO_TRANSFORM_RATE else 1
     first = rng.choice(candidates)
     picked = [first]
     if k == 2:

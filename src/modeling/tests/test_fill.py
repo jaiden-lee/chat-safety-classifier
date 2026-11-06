@@ -78,3 +78,22 @@ def test_fills_are_deterministic_and_distinct():
     assert a == b
     assert len({f.messages[0].text for f in a}) == 3
     assert [f.conversation_id for f in a] == ["sk1-f0", "sk1-f1", "sk1-f2"]
+
+
+def test_disguise_reuses_the_message_style_when_it_applies():
+    import random
+
+    from modeling.data.skeletons.fill import _disguise
+    rng = random.Random(0)
+    for _ in range(20):
+        assert _disguise("jaydenxo09", ["homoglyph"], rng).transforms == ("homoglyph",)
+    # The style doesn't apply (no digits in "snap"), so a random transform is used instead.
+    out = _disguise("snap", ["spelled_digits"], rng)
+    assert out is not None and out.transforms and "spelled_digits" not in out.transforms
+
+
+def test_bang_slots_in_one_message_are_both_disguised():
+    sk = _skeleton(_pos("A", "my {PLATFORM:snapchat!} is {HANDLE:snapchat!}", ["handle"],
+                        ["obfuscated"]))
+    for k in range(20):
+        assert fill_conversation(sk, k).messages[0].hard_tags == ("obfuscated",)

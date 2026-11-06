@@ -6,4 +6,4 @@ model input format and is meant to be imported (or ported) by the serving code.
 
 # Version of docs/labeling_guidelines.md that generated and audited data follows.
 # Stamped into every generated example; bump when the guidelines change.
-GUIDELINE_VERSION = "1.0"
+GUIDELINE_VERSION = "1.1"

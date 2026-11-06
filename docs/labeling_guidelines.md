@@ -1,6 +1,6 @@
 # Labeling Guidelines: Personal-Information and Off-Platform Contact
-Version: 1.0
-Last Updated: 11/04/2026
+Version: 1.1
+Last Updated: 11/05/2026
 Status: Draft (pending review)
 
 These guidelines define the label for every example in the training, validation,
@@ -97,7 +97,7 @@ Tags are lists: use every value that applies.
 |---|---|---|
 | `plain` | None of the tags below apply. Standard format, telltale keyword present. | "my snap is jaydenxo" |
 | `obfuscated` | The information is deliberately altered to evade filters: spacing, character substitution or leetspeak, spelled-out digits, look-alike characters, "at/dot", inserted separators, reversal, or emoji standing in for letters or digits. | "five five five, two oh one…", "d1sc0rd", "j a y d e n x o" |
-| `cross_message` | The label depends on another message in the context: a request answered later (P7), or information split across messages. | `[U1] whats ur snap` → `[SELF] jaydenxo` |
+| `cross_message` | The label depends on another message in the context: a request answered later (P7), or information split across messages. A message that is positive by itself (a complete phone number, email, link, or a handle with its app named) is not `cross_message`, even when it answers a request. | `[U1] whats ur snap` → `[SELF] jaydenxo` |
 | `implicit` | The target contains neither a platform name nor a recognizable identifier format; the meaning comes from euphemism or indirection. | "the yellow ghost app, same name as here", "gimme ur digits" |
 
 ### 5.3 Hard-negative types (negatives only)
@@ -476,3 +476,4 @@ ruling and the reason. Revisit during the Step 4 audit.
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 11/04/2026 | Initial draft. |
+| 1.1 | 11/05/2026 | `cross_message` excludes messages that are positive by themselves (§5.2). |

@@ -10,7 +10,7 @@ the reason is recorded. Each batch writes:
 
 Batches whose skeleton file already exists are skipped, so an interrupted run can be resumed.
 
-    uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 2 --models haiku,sonnet
+    uv run python -m modeling.data.skeletons.generate --out data/pilot --batches 2
 """
 
 from __future__ import annotations
@@ -47,7 +47,8 @@ SLOT_KIND_DOCS = """\
   PHONE, EMAIL, HANDLE:<platform>, LINK:<platform> (profile, channel, or server invite),
   ADDRESS (street address), STREET (street name), SCHOOL, ZIP,
   PLATFORM:<platform> (the app's name as said in chat), PLATFORM_HINT:<platform> (a euphemism),
-  IGN (in-game name), SCORE, MATCH_ID, COORDS (in-game coordinates), LOBBY_CODE,
+  IGN (in-game name), SCORE (points total), ELO (rating), KD (kills-deaths, e.g. 12-4),
+  MATCH_ID, COORDS (in-game coordinates), LOBBY_CODE,
   CITY, STATE, COUNTRY, FIRST_NAME"""
 
 GAMES = (
@@ -96,7 +97,7 @@ POSITIVE_FOCUSES = (
 )
 NEGATIVE_FOCUSES = (
     ("number_lookalike", ("players talk about scores, elo, match ids, or coordinates "
-                         "(use SCORE, MATCH_ID, COORDS slots); no contact info")),
+                         "(use SCORE, ELO, KD, MATCH_ID, COORDS slots); no contact info")),
     ("ingame_social", ("players add each other in game, invite to parties, or share lobby codes "
                       "(use IGN, LOBBY_CODE slots); everything stays in game")),
     ("app_topic", ("players mention other apps only as topics (an app being down, a video they "
@@ -274,7 +275,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--batches", type=int, default=1)
     parser.add_argument("--per-batch", type=int, default=10)
-    parser.add_argument("--models", default="haiku", help="comma-separated, cycled per batch")
+    parser.add_argument("--models", default="sonnet", help="comma-separated, cycled per batch")
     parser.add_argument("--template", default="skeleton_v1")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

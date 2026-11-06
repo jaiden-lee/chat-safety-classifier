@@ -9,7 +9,9 @@ Slot kinds (the vocabulary the generation prompts may use):
 
   Contact values (positives)        Look-alike values (hard negatives)
   PHONE                             IGN            in-game name (same shapes as handles)
-  EMAIL                             SCORE          scores, elo, phone-length numbers
+  EMAIL                             SCORE          points/score totals, incl. phone-length numbers
+                                    ELO            rating (elo, mmr, sr)
+                                    KD             kills-deaths or a round score (12-4)
   HANDLE[:platform]                 MATCH_ID       long numeric ids
   LINK[:platform]                   COORDS         in-game coordinates
   ADDRESS   street address          LOBBY_CODE     in-game lobby/room codes
@@ -130,6 +132,8 @@ class ValueSampler:
             "PLATFORM_HINT": self.platform_hint,
             "IGN": lambda arg: self.username(),
             "SCORE": lambda arg: self.score(),
+            "ELO": lambda arg: str(self.rng.randint(800, 3200)),
+            "KD": lambda arg: self.kd(),
             "MATCH_ID": lambda arg: self._digits(self.rng.randint(9, 12)),
             "COORDS": lambda arg: self.coords(),
             "LOBBY_CODE": lambda arg: self.lobby_code(),
@@ -264,14 +268,17 @@ class ValueSampler:
         return name
 
     def score(self) -> str:
+        """A points total. Often long, and sometimes exactly phone-length, as a hard negative."""
         r = self.rng.random()
-        if r < 0.3:
-            return self._digits(10)  # phone-length number in a score context
+        if r < 0.35:
+            return str(self.rng.randint(1_000_000_000, 9_999_999_999))  # phone-length
         if r < 0.6:
-            return str(self.rng.randint(800, 3200))  # elo / mmr
-        if r < 0.8:
-            return f"{self.rng.randint(0, 40)}-{self.rng.randint(0, 40)}"  # kills-deaths
-        return f"{self.rng.randint(10_000, 9_999_999):,}"  # points with commas
+            return str(self.rng.randint(100, 99_999))
+        return f"{self.rng.randint(10_000, 9_999_999):,}"  # with commas
+
+    def kd(self) -> str:
+        a, b = self.rng.randint(0, 40), self.rng.randint(0, 40)
+        return self.rng.choice((f"{a}-{b}", f"{a}/{b}", f"{a}-{b}", f"{a} and {b}"))
 
     def coords(self) -> str:
         x, y, z = (self.rng.randint(-3000, 3000) for _ in range(3))

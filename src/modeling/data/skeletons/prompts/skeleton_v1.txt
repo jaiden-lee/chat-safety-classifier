@@ -52,8 +52,15 @@ Label every message, using only that message and the messages before it (never l
 - Negative: "label": 0, "neg_type": "..."
 
 Categories: handle, phone, email, location, platform_move.
-Hard tags: plain, obfuscated, cross_message, implicit. "plain" means none of the others apply
-and can't be combined with them.
+Hard tags (one or more; "plain" can't be combined with the others):
+- cross_message: the message would look harmless on its own and is positive only because of an
+  earlier message, e.g. a bare username answering "whats ur discord", or one fragment of a
+  split number. A message that contains a complete phone number, email, link, or a handle with
+  its app named is positive by itself, so it is NOT cross_message, even if it answers a request.
+- obfuscated: the message contains a slot marked "!".
+- implicit: no app name and no recognizable identifier format; the meaning comes from a
+  euphemism or indirection ("the ghost app", "same name as here", "gimme ur digits").
+- plain: none of the above.
 Negative types: easy, number_lookalike, ingame_social, app_topic, ingame_name_reference,
 coarse_location, refusal_warning, post_exchange.
 
