@@ -41,7 +41,9 @@ class ClaudeCLIBackend:
 
     The prompt goes on stdin. `--system-prompt` replaces Claude Code's default coding-agent
     prompt, so calls are small and the model acts as a plain text generator. Failed calls
-    (including usage-limit errors) are retried with exponential backoff.
+    are retried with exponential backoff. Usage-limit errors (subscription limits reset after
+    hours) instead wait `limit_wait_s` and retry, up to `max_limit_waits` times, without using
+    up the normal retries.
     """
 
     def __init__(
@@ -51,6 +53,8 @@ class ClaudeCLIBackend:
         max_retries: int = 4,
         backoff_s: float = 30,
         effort: str | None = "low",
+        limit_wait_s: float = 1800,
+        max_limit_waits: int = 12,
     ) -> None:
         resolved = shutil.which(executable)
         if resolved is None:
@@ -60,6 +64,8 @@ class ClaudeCLIBackend:
         self.max_retries = max_retries
         self.backoff_s = backoff_s
         self.effort = effort  # Claude Code --effort: low, medium, high, xhigh, max
+        self.limit_wait_s = limit_wait_s
+        self.max_limit_waits = max_limit_waits
         # Run outside the repo so no project CLAUDE.md or settings leak into generation.
         self.cwd = tempfile.gettempdir()
 
@@ -76,9 +82,20 @@ class ClaudeCLIBackend:
         if self.effort:
             cmd += ["--effort", self.effort]
         last_error = ""
-        for attempt in range(self.max_retries + 1):
-            if attempt:
-                time.sleep(self.backoff_s * 2 ** (attempt - 1))
+        failures = limit_waits = 0
+        while True:
+            if last_error:
+                if _is_usage_limit(last_error) and limit_waits < self.max_limit_waits:
+                    limit_waits += 1
+                    print(f"usage limit hit; waiting {self.limit_wait_s / 60:.0f} min "
+                          f"({limit_waits}/{self.max_limit_waits}): {last_error[:120]}",
+                          flush=True)
+                    time.sleep(self.limit_wait_s)
+                else:
+                    failures += 1
+                    if failures > self.max_retries:
+                        break
+                    time.sleep(self.backoff_s * 2 ** (failures - 1))
             start = time.monotonic()
             try:
                 proc = subprocess.run(
@@ -101,6 +118,11 @@ class ClaudeCLIBackend:
             return LLMResult(response.get("result", ""), _main_model(response, model), duration,
                              response)
         raise LLMError(f"claude -p failed after {self.max_retries + 1} attempts: {last_error}")
+
+
+def _is_usage_limit(error: str) -> bool:
+    text = error.lower()
+    return "limit" in text and any(w in text for w in ("usage", "rate", "reset", "reached"))
 
 
 def _main_model(response: dict, requested: str) -> str:

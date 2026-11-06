@@ -27,7 +27,7 @@ from string import Template
 
 from modeling.data.primitives.values import PLATFORMS
 from modeling.data.skeletons.fill import SLOT_RE, slot_errors
-from modeling.data.skeletons.llm_backend import ClaudeCLIBackend, LLMBackend
+from modeling.data.skeletons.llm_backend import ClaudeCLIBackend, LLMBackend, LLMError
 from modeling.schema import (
     ChannelType,
     Conversation,
@@ -323,14 +323,29 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
-    backend = ClaudeCLIBackend(effort=args.effort)
-    models = args.models.split(",")
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        list(pool.map(
-            lambda b: run_batch(backend, args.out, args.template, args.seed, b, args.per_batch,
-                                models[b % len(models)]),
-            range(args.batches),
-        ))
+    failed = run_batches(ClaudeCLIBackend(effort=args.effort), args.out, args.template,
+                         args.seed, args.batches, args.per_batch, args.models.split(","),
+                         args.workers)
+    if failed:
+        raise SystemExit(f"{len(failed)} batches failed (rerun to retry): {failed}")
+
+
+def run_batches(
+    backend: LLMBackend, out_dir: Path, template_id: str, seed: int, n_batches: int,
+    per_batch: int, models: list[str], workers: int = 1,
+) -> list[int]:
+    """Run batches 0..n_batches-1 (skipping finished ones). A batch whose LLM call fails is
+    logged and skipped, not fatal; returns the failed batch indices so a rerun can retry them."""
+    def one(b: int) -> int | None:
+        try:
+            run_batch(backend, out_dir, template_id, seed, b, per_batch, models[b % len(models)])
+        except LLMError as e:
+            print(f"batch {b}: FAILED: {e}", flush=True)
+            return b
+        return None
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return [b for b in pool.map(one, range(n_batches)) if b is not None]
 
 
 if __name__ == "__main__":

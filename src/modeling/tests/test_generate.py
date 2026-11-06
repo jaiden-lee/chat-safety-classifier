@@ -120,3 +120,57 @@ def test_complete_phone_is_not_cross_message_but_fragment_is():
     msgs = skeletons[0].messages
     assert msgs[1].hard_tags == ("plain",)
     assert msgs[2].hard_tags == ("cross_message",) and msgs[3].hard_tags == ("cross_message",)
+
+
+def test_failed_batches_are_skipped_not_fatal(tmp_path):
+    from modeling.data.skeletons.llm_backend import LLMError
+
+    class FlakyBackend(FakeBackend):
+        def complete(self, prompt, *, model, system):
+            self.calls += 1
+            if self.calls == 2:
+                raise LLMError("boom")
+            return LLMResult(self.text, "fake-model", 0.1)
+
+    backend = FlakyBackend(_response([GOOD]))
+    failed = gen.run_batches(backend, tmp_path, "skeleton_v1", 0, 3, 1, ["haiku"])
+    assert failed == [1]
+    assert len(list((tmp_path / "skeletons").glob("*.jsonl"))) == 2
+    assert gen.run_batches(backend, tmp_path, "skeleton_v1", 0, 3, 1, ["haiku"]) == []
+    assert backend.calls == 4  # the rerun only retried batch 1
+
+
+def test_usage_limit_detection():
+    from modeling.data.skeletons.llm_backend import _is_usage_limit
+    assert _is_usage_limit("exit 1: Claude usage limit reached. Your limit will reset at 5pm")
+    assert _is_usage_limit("exit 1: rate limit exceeded")
+    assert not _is_usage_limit("exit 1: non-JSON output")
+
+
+def test_backend_waits_out_usage_limits_and_gives_up_on_other_errors(monkeypatch):
+    import subprocess
+
+    import pytest
+
+    from modeling.data.skeletons import llm_backend
+    ok = json.dumps({"result": "hi", "modelUsage": {"claude-sonnet-5-5": {"outputTokens": 3}}})
+    limit = json.dumps({"is_error": True, "result": "Claude usage limit reached, resets at 5pm"})
+    bad = json.dumps({"is_error": True, "result": "something broke"})
+    outputs, sleeps = [], []
+
+    def fake_run(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 0, stdout=outputs.pop(0), stderr="")
+
+    monkeypatch.setattr(llm_backend.subprocess, "run", fake_run)
+    monkeypatch.setattr(llm_backend.time, "sleep", sleeps.append)
+    backend = llm_backend.ClaudeCLIBackend(executable="python", max_retries=2, backoff_s=1,
+                                           limit_wait_s=100)
+
+    outputs[:] = [limit, limit, ok]
+    assert backend.complete("p", model="sonnet", system="s").text == "hi"
+    assert sleeps == [100, 100]  # limit waits don't use up retries
+
+    outputs[:], sleeps[:] = [bad, bad, bad], []
+    with pytest.raises(llm_backend.LLMError):
+        backend.complete("p", model="sonnet", system="s")
+    assert sleeps == [1, 2]  # 1 try + 2 retries with exponential backoff
