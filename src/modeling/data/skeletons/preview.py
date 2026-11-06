@@ -74,7 +74,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--out", type=Path, required=True, help="directory with skeletons/")
     parser.add_argument("--fills", type=int, default=3)
-    parser.add_argument("--obfuscation-rate", type=float, default=0.5)
+    parser.add_argument("--obfuscation-rate", type=float, default=0.2)
     args = parser.parse_args()
 
     skeletons = [s for path in sorted((args.out / "skeletons").glob("*.jsonl"))

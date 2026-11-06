@@ -39,7 +39,7 @@ control over values, obfuscation, and tags from code.
    `cross_message`. Survivors are **skeletons**.
 4. **Fill.** `fill.py` turns each skeleton into 3 concrete conversations by sampling slot
    values (`primitives/values.py`). Fill 0 keeps values plain except slots the LLM marked `!`;
-   fills 1-2 also disguise contact values at random (`primitives/obfuscate.py`) and update the
+   fills 1-2 also disguise each contact value with 20% probability (`primitives/obfuscate.py`) and update the
    tags to `obfuscated`. All fills share the skeleton's id, so they always land in the same
    train/val/test split.
 5. **Scoring rows** (Step 4, not built yet). Every message of every filled conversation becomes

@@ -143,7 +143,7 @@ def fill_conversation(
 
 
 def fill_skeleton(
-    skeleton: Conversation, n_fills: int, obfuscation_rate: float = 0.5
+    skeleton: Conversation, n_fills: int, obfuscation_rate: float = 0.2
 ) -> list[Conversation]:
     """`n_fills` conversations from one skeleton. Fill 0 only disguises `!` slots; the others
     also disguise unmarked contact slots in positive messages at `obfuscation_rate`."""
