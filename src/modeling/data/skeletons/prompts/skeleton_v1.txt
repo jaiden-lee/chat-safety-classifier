@@ -1,0 +1,85 @@
+You are writing synthetic in-game chat conversations to train a classifier that detects when
+players share or ask for personal or off-platform contact information. The data is synthetic;
+no real people are involved.
+
+Write $n_conversations conversations, one for each spec below. Every message must be labeled by
+the labeling guidelines at the end of these instructions.
+
+# How to write the chat
+
+- It's live chat inside an online game. Write like real players: short messages, lowercase,
+  slang, typos, abbreviations (ngl, fr, lmao, wyd, hmu), emotes, little punctuation. Vary how
+  people talk; not everyone sounds the same.
+- Include ordinary game chatter around the interesting part: callouts, trash talk, jokes,
+  complaints, "gg", questions about the game. In group chats, other players talk over each
+  other and some messages are unrelated to the main exchange.
+- Speakers are "A", "B", "C", ... in order of first appearance. Use exactly the number of
+  speakers in the spec.
+- The game in the spec is only flavor. Don't use real game titles.
+- Keep it clean: no sexual content, threats, or slurs. The topic is contact information.
+
+# Slots: never write real-looking contact details
+
+Never write a phone number, email, username, handle, link, address, school name, or ZIP code
+yourself. Write a slot instead; code fills it with a fake value later. A slot is
+{KIND} or {KIND:platform}.
+
+Kinds:
+$slot_kinds
+
+Platforms (for HANDLE, LINK, PLATFORM, PLATFORM_HINT): $platforms
+
+Slot rules:
+- Same slot text = same value within a conversation. "{HANDLE:discord}" twice is the same
+  handle. Number different values of the same kind: {HANDLE:discord#2}.
+- In-game usernames are {IGN} (or {IGN#2}, ...), never HANDLE. A player's in-game name is
+  on-platform and negative.
+- Name a platform in text either directly ("add me on discord") or with
+  {PLATFORM:discord}, which code fills with a chat spelling such as "dc" or "disc".
+- To split one value across several messages, use fragments: {PHONE~1/3}, {PHONE~2/3},
+  {PHONE~3/3} are the three parts of the same {PHONE}, in order.
+- Add "!" at the end of a slot to mark that the speaker is disguising it to dodge the filter:
+  {PHONE!}, {HANDLE:snapchat!}, {PLATFORM:discord!}. Code applies the disguise (spacing,
+  leetspeak, spelled-out digits, look-alike characters). Use "!" only when the spec asks for
+  obfuscation, and tag those messages "obfuscated".
+- You may describe a platform without naming it ("the ghost app", "u know the yellow one")
+  or use {PLATFORM_HINT:snapchat}. Messages like that are "implicit".
+
+# Labels
+
+Label every message, using only that message and the messages before it (never later ones):
+- Positive: "label": 1, "categories": [...], "hard_tags": [...]
+- Negative: "label": 0, "neg_type": "..."
+
+Categories: handle, phone, email, location, platform_move.
+Hard tags: plain, obfuscated, cross_message, implicit. "plain" means none of the others apply
+and can't be combined with them.
+Negative types: easy, number_lookalike, ingame_social, app_topic, ingame_name_reference,
+coarse_location, refusal_warning, post_exchange.
+
+# Conversation specs
+
+$specs
+
+# Output
+
+Output only a JSON array, no other text and no code fences. One object per conversation, in
+spec order:
+
+[
+  {
+    "spec": 1,
+    "messages": [
+      {"speaker": "A", "text": "gg that was close", "label": 0, "neg_type": "easy"},
+      {"speaker": "B", "text": "ur cracked lol u got {PLATFORM:discord}?", "label": 1,
+       "categories": ["platform_move"], "hard_tags": ["plain"]},
+      {"speaker": "A", "text": "{HANDLE:discord}", "label": 1, "categories": ["handle"],
+       "hard_tags": ["cross_message"]},
+      {"speaker": "B", "text": "added", "label": 0, "neg_type": "post_exchange"}
+    ]
+  }
+]
+
+# Labeling guidelines
+
+$guidelines

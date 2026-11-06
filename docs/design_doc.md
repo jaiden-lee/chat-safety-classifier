@@ -305,8 +305,8 @@ Chat backend
     POST /v1/score
     {
       "message":  { "speaker_id": "a91f", "text": "..." },
-      "context":  [ { "speaker_id": "77c2", "text": "...", "ts": 1729370000,
-                      "reply_to_speaker": "a91f" }, ... ],   // last ≤ 50 msgs / 10 min
+      "context":  [ { "speaker_id": "77c2", "text": "...", "ts": 1729370000 },
+                    ... ],                                      // last ≤ 50 msgs
       "channel_type": "group"                                   // or "direct"
     }
 
@@ -317,17 +317,21 @@ and never sees or logs real usernames.
 
 ### 5.2 Context builder
 
-For each new message, select context in priority order until the token budget is
-reached:
+For each new message, the context is the longest run of the most recent earlier
+messages that fits the token budget:
 
-1. The new message (always included; segment B).
-2. Recent messages that mention or reply to the author ([SELF]).
-3. [SELF]'s own recent messages.
-4. The most recent other messages in the channel.
+1. The new message is always included (segment B) and counts toward the budget.
+2. Walk backward from the newest earlier message, adding messages while they fit;
+   stop at the first one that doesn't. This keeps the request that a bare answer
+   responds to (cross-message cases).
+
+The rule is kept deliberately simple because serving may reimplement it in
+another language (e.g., Rust), and training and serving must produce identical
+input. Game chat isn't threaded and speaker IDs are opaque, so the builder
+doesn't use reply or mention structure.
 
 - **Budget:** 256 tokens target, 512 hard cap (BERT's maximum).
-- **Lookback:** candidates come from the last 50 messages or last 10 minutes,
-  whichever is smaller.
+- **Lookback:** candidates come from the last 50 messages.
 - **Format:** selected messages in chronological order with relative speaker tags,
   plus a leading channel-type token ([DM] / [GROUP]).
 
@@ -339,7 +343,7 @@ reached:
 | D1 | What is scored | The newest message, judged with its conversation context; binary label + score | Score the whole conversation; per-type labels | The platform acts on the incoming message, so that's what gets judged. Binary keeps evaluation simple; per-type labels are a later extension. |
 | D2 | Model family | Small fine-tuned encoder (BERT-base to start; distilled variants evaluated in P2) | LLM judge; regex + PII tagger; per-message classifier without context | Fits the latency and cost budget (§4). An LLM is roughly two orders of magnitude more compute per message (§4.6). Rules fail on obfuscated and cross-message cases (Q2). Context is required for the core cases. |
 | D3 | Multi-party handling | One model call per message, with relative speaker tags | One call per pair of participants | Pairwise grows with participants²; a single call with speaker roles captures who said what at constant cost. Blocking sharing in a group is as important as in a DM. |
-| D4 | Context selection | Rule-based builder under a token budget (§5.2) | Fixed last-k messages; larger window | Catches long-range exchanges in busy chats without growing n; attention cost grows with n². |
+| D4 | Context selection | Most recent messages that fit a token budget (§5.2), from the last 50 | Fixed last-k messages; priority rules (e.g., the author's older messages); larger window | Bounds n by tokens rather than message count, so cost stays predictable; attention cost grows with n². Priority rules were dropped so serving (possibly non-Python) can reproduce the builder exactly. |
 | D5 | Input encoding | Context as segment A, new message as segment B (BERT token-type IDs) | Concatenate with a separator only | Uses an existing BERT feature to mark exactly which message is being judged. |
 | D6 | Service state | Stateless: the backend sends candidate context with every request | Service keeps a per-channel buffer (in memory or Redis) | Simpler, restart-safe, easy to scale horizontally. Cost: larger requests (~5 KB), negligible next to inference. |
 | D7 | Request path | Synchronous call before delivery | Async moderation after delivery | Contact info can't be "unsent" once seen; blocking must happen first. |
@@ -576,7 +580,7 @@ Real production labels aren't available, so quality is watched two ways:
 - **In-game identifiers.** Is sharing an in-game username (on-platform) acceptable?
   Current assumption: yes, only off-platform contact is targeted. Needs to be
   fixed in the labeling guidelines.
-- **Context builder parameters.** Are 256 tokens and a 50-message / 10-minute
+- **Context builder parameters.** Are 256 tokens and a 50-message
   lookback enough for busy group chats? Measured via recall vs. budget in P2.
 - **Re-encode vs. encode-once** (§5.4, PR15).
 - **GPU class:** T4 vs. A10G/L4, decided on measured cost per million messages

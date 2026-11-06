@@ -1,0 +1,98 @@
+import json
+import random
+
+from modeling.data.skeletons import generate as gen
+from modeling.data.skeletons.fill import SLOT_KINDS
+from modeling.data.skeletons.llm_backend import LLMResult
+from modeling.schema import read_conversations
+
+
+def _specs(n=2):
+    return gen.sample_specs(random.Random(0), n)
+
+
+def _response(items) -> str:
+    return "Here you go:\n```json\n" + json.dumps(items) + "\n```"
+
+
+GOOD = {"spec": 1, "messages": [
+    {"speaker": "A", "text": "gg", "label": 0, "neg_type": "easy"},
+    {"speaker": "B", "text": "u got {PLATFORM:discord}?", "label": 1,
+     "categories": ["platform_move"], "hard_tags": ["plain"]},
+    {"speaker": "A", "text": "{HANDLE:discord}", "label": 1, "categories": ["handle"],
+     "hard_tags": ["cross_message"]},
+    {"speaker": "B", "text": "added", "label": 0, "neg_type": "post_exchange"},
+]}
+
+
+def _with_text(text: str) -> dict:
+    item = json.loads(json.dumps(GOOD))
+    item["messages"][1]["text"] = text
+    return item
+
+
+def test_prompt_documents_every_slot_kind_and_fills_all_placeholders():
+    prompt = gen.render_prompt("skeleton_v1", _specs())
+    assert "$" not in prompt.replace("$$", "")  # no unfilled Template placeholders
+    for kind in SLOT_KINDS:
+        assert kind in gen.SLOT_KIND_DOCS
+    assert "Spec 1:" in prompt and "Spec 2:" in prompt
+    assert "Labeling Guidelines" in prompt
+
+
+def test_parse_valid_response_and_report_missing_spec():
+    skeletons, errors = gen.parse_response(_response([GOOD]), _specs(), "b0", "t1", "haiku")
+    assert len(skeletons) == 1
+    sk = skeletons[0]
+    assert sk.conversation_id == "b0-c01" and sk.provenance.skeleton_id == "b0-c01"
+    assert sk.messages[2].hard_tags == ("cross_message",)
+    assert errors == ["spec 2: missing from response"]
+
+
+def test_rejects_leaked_contact_info_bad_labels_and_bad_slots():
+    for text, reason in [
+        ("text me 415 201 8890", "phone-like"),
+        ("its kayla@gmail.com", "email"),
+        ("join discord.gg/abc123", "link"),
+        ("add {HANDLE:myspace}", "unknown platform"),
+    ]:
+        skeletons, errors = gen.parse_response(
+            _response([_with_text(text)]), _specs(1), "b0", "t1", "haiku")
+        assert skeletons == [] and reason in errors[0], (text, errors)
+
+    bad_label = json.loads(json.dumps(GOOD))
+    bad_label["messages"][0] = {"speaker": "A", "text": "gg", "label": 1}  # positive, no tags
+    skeletons, errors = gen.parse_response(_response([bad_label]), _specs(1), "b", "t", "m")
+    assert skeletons == [] and errors
+
+
+def test_non_json_response():
+    skeletons, errors = gen.parse_response("sorry, I can't", _specs(1), "b", "t", "m")
+    assert skeletons == [] and "not a JSON array" in errors[0]
+
+
+class FakeBackend:
+    def __init__(self, text):
+        self.text, self.calls = text, 0
+
+    def complete(self, prompt, *, model, system):
+        self.calls += 1
+        return LLMResult(self.text, "fake-model", 0.1)
+
+
+def test_run_batch_writes_outputs_and_resumes(tmp_path):
+    backend = FakeBackend(_response([GOOD]))
+    path = gen.run_batch(backend, tmp_path, "skeleton_v1", 0, 0, 1, "haiku")
+    assert path is not None and len(list(read_conversations(path))) == 1
+    raw = json.loads((tmp_path / "raw" / "skeleton_v1-s0-b0000.json").read_text(encoding="utf-8"))
+    assert raw["model"] == "fake-model" and raw["n_valid"] == 1
+    assert gen.run_batch(backend, tmp_path, "skeleton_v1", 0, 0, 1, "haiku") is None
+    assert backend.calls == 1
+
+
+def test_main_model_ignores_claude_code_side_calls():
+    from modeling.data.skeletons.llm_backend import _main_model
+    response = {"modelUsage": {"claude-haiku-5-5": {"outputTokens": 12},
+                               "claude-sonnet-5-5": {"outputTokens": 6000}}}
+    assert _main_model(response, "sonnet") == "claude-sonnet-5-5"
+    assert _main_model({}, "sonnet") == "sonnet"

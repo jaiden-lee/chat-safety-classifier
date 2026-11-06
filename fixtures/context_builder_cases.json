@@ -1,0 +1,425 @@
+{
+  "spec": "Golden cases for the context builder (docs/design_doc.md §5.2, src/modeling/context.py). Any reimplementation (e.g., the serving path) must reproduce `expected` exactly. Token counts use `token_counter`; 'whitespace' = number of whitespace-separated pieces. Every speaker or channel tag costs 1 token; overhead is 3 ([CLS], [SEP], [SEP]). `config` fields override defaults: token_budget 256, lookback_messages 50. Edit expected values only when the builder's behavior intentionally changes.",
+  "token_counter": "whitespace",
+  "cases": [
+    {
+      "name": "empty_history_dm",
+      "description": "No earlier messages: context is just the channel tag.",
+      "channel_type": "direct",
+      "config": {},
+      "history": [],
+      "target": {
+        "speaker_id": "a",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[DM]",
+        "target_text": "hi",
+        "total_tokens": 5,
+        "n_context_messages": 0,
+        "n_speakers": 1
+      }
+    },
+    {
+      "name": "relative_tags_group",
+      "description": "Target author is [SELF]; others get [U1], [U2] by first appearance in the kept context.",
+      "channel_type": "group",
+      "config": {},
+      "history": [
+        {
+          "speaker_id": "p2",
+          "text": "u got discord?"
+        },
+        {
+          "speaker_id": "p1",
+          "text": "ya"
+        },
+        {
+          "speaker_id": "p3",
+          "text": "same"
+        },
+        {
+          "speaker_id": "p2",
+          "text": "whats ur tag"
+        }
+      ],
+      "target": {
+        "speaker_id": "p1",
+        "text": "shadowfox_22"
+      },
+      "expected": {
+        "context_text": "[GROUP] [U1] u got discord? [SELF] ya [U2] same [U1] whats ur tag",
+        "target_text": "shadowfox_22",
+        "total_tokens": 17,
+        "n_context_messages": 4,
+        "n_speakers": 3
+      }
+    },
+    {
+      "name": "same_history_other_author",
+      "description": "Same history as relative_tags_group, but judged from p2's side: tags change.",
+      "channel_type": "group",
+      "config": {},
+      "history": [
+        {
+          "speaker_id": "p2",
+          "text": "u got discord?"
+        },
+        {
+          "speaker_id": "p1",
+          "text": "ya"
+        },
+        {
+          "speaker_id": "p3",
+          "text": "same"
+        }
+      ],
+      "target": {
+        "speaker_id": "p2",
+        "text": "whats ur tag"
+      },
+      "expected": {
+        "context_text": "[GROUP] [SELF] u got discord? [U1] ya [U2] same",
+        "target_text": "whats ur tag",
+        "total_tokens": 15,
+        "n_context_messages": 3,
+        "n_speakers": 3
+      }
+    },
+    {
+      "name": "first_appearance_order",
+      "description": "Speakers are numbered by first appearance, oldest kept message first.",
+      "channel_type": "group",
+      "config": {},
+      "history": [
+        {
+          "speaker_id": "x",
+          "text": "a"
+        },
+        {
+          "speaker_id": "y",
+          "text": "b"
+        },
+        {
+          "speaker_id": "x",
+          "text": "c"
+        },
+        {
+          "speaker_id": "z",
+          "text": "d"
+        },
+        {
+          "speaker_id": "y",
+          "text": "e"
+        }
+      ],
+      "target": {
+        "speaker_id": "w",
+        "text": "f"
+      },
+      "expected": {
+        "context_text": "[GROUP] [U1] a [U2] b [U1] c [U3] d [U2] e",
+        "target_text": "f",
+        "total_tokens": 15,
+        "n_context_messages": 5,
+        "n_speakers": 4
+      }
+    },
+    {
+      "name": "more_than_nine_speakers",
+      "description": "Speakers beyond the 9th other speaker all share [UOTHER].",
+      "channel_type": "group",
+      "config": {},
+      "history": [
+        {
+          "speaker_id": "s0",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s1",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s2",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s3",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s4",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s5",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s6",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s7",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s8",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s9",
+          "text": "hey"
+        },
+        {
+          "speaker_id": "s10",
+          "text": "hey"
+        }
+      ],
+      "target": {
+        "speaker_id": "self",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[GROUP] [U1] hey [U2] hey [U3] hey [U4] hey [U5] hey [U6] hey [U7] hey [U8] hey [U9] hey [UOTHER] hey [UOTHER] hey",
+        "target_text": "hi",
+        "total_tokens": 27,
+        "n_context_messages": 11,
+        "n_speakers": 12
+      }
+    },
+    {
+      "name": "budget_cuts_oldest",
+      "description": "Budget 12: overhead 3 + channel 1 + target 1 = 5; keeps the newest messages (cost 2, 3) = 10; the next (cost 4) would exceed.",
+      "channel_type": "direct",
+      "config": {
+        "token_budget": 12
+      },
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "one two three"
+        },
+        {
+          "speaker_id": "b",
+          "text": "four five"
+        },
+        {
+          "speaker_id": "c",
+          "text": "six"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[DM] [U1] four five [U2] six",
+        "target_text": "hi",
+        "total_tokens": 10,
+        "n_context_messages": 2,
+        "n_speakers": 3
+      }
+    },
+    {
+      "name": "exact_fit_kept",
+      "description": "A message that brings the total exactly to the budget is kept.",
+      "channel_type": "direct",
+      "config": {
+        "token_budget": 9
+      },
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "one two three"
+        },
+        {
+          "speaker_id": "b",
+          "text": "four five six"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[DM] [U1] four five six",
+        "target_text": "hi",
+        "total_tokens": 9,
+        "n_context_messages": 1,
+        "n_speakers": 2
+      }
+    },
+    {
+      "name": "long_message_blocks_older",
+      "description": "Selection stops at the first message that doesn't fit; older messages are dropped even if they'd fit.",
+      "channel_type": "direct",
+      "config": {
+        "token_budget": 15
+      },
+      "history": [
+        {
+          "speaker_id": "a",
+          "text": "my number is"
+        },
+        {
+          "speaker_id": "b",
+          "text": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word"
+        },
+        {
+          "speaker_id": "b",
+          "text": "ok"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "415"
+      },
+      "expected": {
+        "context_text": "[DM] [U1] ok",
+        "target_text": "415",
+        "total_tokens": 7,
+        "n_context_messages": 1,
+        "n_speakers": 2
+      }
+    },
+    {
+      "name": "target_alone_over_budget",
+      "description": "If the target alone exceeds the budget, no context is kept and total_tokens exceeds the budget.",
+      "channel_type": "direct",
+      "config": {
+        "token_budget": 8
+      },
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "hey"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "one two three four five six"
+      },
+      "expected": {
+        "context_text": "[DM]",
+        "target_text": "one two three four five six",
+        "total_tokens": 10,
+        "n_context_messages": 0,
+        "n_speakers": 1
+      }
+    },
+    {
+      "name": "lookback_limit",
+      "description": "Only the last lookback_messages messages are candidates.",
+      "channel_type": "direct",
+      "config": {
+        "lookback_messages": 3
+      },
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "m0"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m1"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m2"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m3"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m4"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m5"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m6"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m7"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m8"
+        },
+        {
+          "speaker_id": "b",
+          "text": "m9"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[DM] [U1] m7 [U1] m8 [U1] m9",
+        "target_text": "hi",
+        "total_tokens": 11,
+        "n_context_messages": 3,
+        "n_speakers": 2
+      }
+    },
+    {
+      "name": "lookback_zero",
+      "description": "lookback_messages = 0 means no context.",
+      "channel_type": "direct",
+      "config": {
+        "lookback_messages": 0
+      },
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "hey"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "hi"
+      },
+      "expected": {
+        "context_text": "[DM]",
+        "target_text": "hi",
+        "total_tokens": 5,
+        "n_context_messages": 0,
+        "n_speakers": 1
+      }
+    },
+    {
+      "name": "text_passed_verbatim",
+      "description": "Message text is not normalized: case, repeated spaces, punctuation, emoji, and non-ASCII characters are copied as is. Token counts split on whitespace.",
+      "channel_type": "group",
+      "config": {},
+      "history": [
+        {
+          "speaker_id": "b",
+          "text": "My  👻 is   JaydenXO"
+        },
+        {
+          "speaker_id": "c",
+          "text": "ⅽhаrlіе lol!!"
+        }
+      ],
+      "target": {
+        "speaker_id": "a",
+        "text": "4 1 5"
+      },
+      "expected": {
+        "context_text": "[GROUP] [U1] My  👻 is   JaydenXO [U2] ⅽhаrlіе lol!!",
+        "target_text": "4 1 5",
+        "total_tokens": 15,
+        "n_context_messages": 2,
+        "n_speakers": 3
+      }
+    }
+  ]
+}
