@@ -181,12 +181,13 @@ def render_prompt(template_id: str, specs: list[Spec]) -> str:
     )
 
 
-# Contact details the LLM was told never to write itself (outside slots).
+# Contact details the LLM was told never to write itself (outside slots), with the minimum
+# number of digits a match needs to count (so "4-2-3-1", a formation, isn't a phone number).
 _LEAK_PATTERNS = [
-    (re.compile(r"\d[\d\s().-]{5,}\d"), "phone-like digits"),
-    (re.compile(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", re.IGNORECASE), "email address"),
+    (re.compile(r"\d[\d\s().-]{5,}\d"), "phone-like digits", 7),
+    (re.compile(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", re.IGNORECASE), "email address", 0),
     (re.compile(r"(discord\.gg|t\.me|wa\.me|instagram\.com|snapchat\.com|twitch\.tv|"
-                r"tiktok\.com|youtube\.com|x\.com|twitter\.com)/\S+", re.IGNORECASE), "link"),
+                r"tiktok\.com|youtube\.com|x\.com|twitter\.com)/\S+", re.IGNORECASE), "link", 0),
 ]
 
 
@@ -196,11 +197,11 @@ def parse_response(
     """Valid skeletons from an LLM response, one error per rejected conversation, and notes on
     tags that were corrected automatically."""
     try:
-        items = json.loads(_json_array(text))
-    except (ValueError, json.JSONDecodeError) as e:
+        items, errors = _json_items(text)
+    except ValueError as e:
         return [], [f"response is not a JSON array: {e}"], []
     by_index = {s.index: s for s in specs}
-    skeletons, errors, fixes, seen = [], [], [], set()
+    skeletons, fixes, seen = [], [], set()
     for item in items:
         spec = by_index.get(item.get("spec") if isinstance(item, dict) else None)
         if spec is None or spec.index in seen:
@@ -241,6 +242,8 @@ def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
     messages, notes = [], []
     for j, m in enumerate(raw_messages):
         text, speaker = m.get("text"), m.get("speaker")
+        if isinstance(speaker, str):
+            speaker = speaker.strip().upper()  # "a" -> "A"
         if not isinstance(text, str) or not text.strip():
             raise ValueError(f"message {j}: empty text")
         if not isinstance(speaker, str) or not re.fullmatch(r"[A-Z]", speaker):
@@ -248,9 +251,10 @@ def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
         if errs := slot_errors(text):
             raise ValueError(f"message {j}: {'; '.join(errs)}")
         outside_slots = SLOT_RE.sub(" ", text)
-        for pattern, what in _LEAK_PATTERNS:
-            if pattern.search(outside_slots):
-                raise ValueError(f"message {j}: {what} written outside a slot: {text!r}")
+        for pattern, what, min_digits in _LEAK_PATTERNS:
+            for leak in pattern.finditer(outside_slots):
+                if sum(c.isdigit() for c in leak.group()) >= min_digits:
+                    raise ValueError(f"message {j}: {what} written outside a slot: {text!r}")
         hard_tags, note = _fix_tags(text, m.get("label"), list(m.get("hard_tags") or ()))
         if note:
             notes.append(f"message {j}: {note}")
@@ -268,12 +272,38 @@ def _to_skeleton(item: dict, spec: Spec, batch_id: str, template_id: str,
     ), notes
 
 
-def _json_array(text: str) -> str:
-    """The outermost JSON array in `text`, tolerating code fences or stray prose."""
-    start, end = text.find("["), text.rfind("]")
-    if start < 0 or end <= start:
+_CONVERSATION_START = re.compile(r'\{\s*"spec"')
+
+
+def _json_items(text: str) -> tuple[list, list[str]]:
+    """The items of the JSON array in `text`, salvaging what it can from a malformed response.
+
+    Items are decoded one at a time. After a malformed stretch, or an early ']', decoding
+    resumes at the next object that starts with a "spec" key, so one broken conversation (or a
+    model that rambles mid-array) doesn't cost the whole batch. Returns (items, errors).
+    """
+    start = text.find("[")
+    if start < 0:
         raise ValueError("no JSON array found")
-    return text[start:end + 1]
+    decoder = json.JSONDecoder()
+    items, errors, pos = [], [], start + 1
+    while pos < len(text):
+        while pos < len(text) and text[pos] in " \t\r\n,":
+            pos += 1
+        if pos >= len(text):
+            break
+        if text[pos] != "]":
+            try:
+                item, pos = decoder.raw_decode(text, pos)
+                items.append(item)
+                continue
+            except json.JSONDecodeError as e:
+                errors.append(f"malformed JSON at char {pos}: {e.msg}")
+        nxt = _CONVERSATION_START.search(text, pos + 1)
+        if nxt is None:
+            break
+        pos = nxt.start()
+    return items, errors
 
 
 def run_batch(
@@ -302,6 +332,8 @@ def run_batch(
         "specs": [asdict(s) for s in specs], "n_valid": len(skeletons), "errors": errors,
         "fixes": fixes, "response": result.text,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not skeletons:  # don't mark the batch done; a rerun retries it
+        raise LLMError(f"{batch_id}: no valid conversations in the response: {errors[:2]}")
     write_conversations(skeleton_path, skeletons)
     n_pos = sum(m.label == 1 for sk in skeletons for m in sk.messages)
     n_msg = sum(len(sk.messages) for sk in skeletons)
@@ -321,13 +353,42 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=1, help="batches run in parallel")
     parser.add_argument("--template", default="skeleton_v1")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--reparse", action="store_true",
+                        help="re-validate saved raw responses (no LLM calls) and exit")
     args = parser.parse_args()
+
+    if args.reparse:
+        reparse(args.out)
+        return
 
     failed = run_batches(ClaudeCLIBackend(effort=args.effort), args.out, args.template,
                          args.seed, args.batches, args.per_batch, args.models.split(","),
                          args.workers)
     if failed:
         raise SystemExit(f"{len(failed)} batches failed (rerun to retry): {failed}")
+
+
+def reparse(out_dir: Path) -> None:
+    """Re-validate every saved raw response with the current parser and rules, rewriting the
+    skeleton files. Recovers conversations rejected by older, stricter validation without new
+    LLM calls. Only batches whose skeleton file exists (i.e., finished) are touched."""
+    gained = 0
+    for raw_path in sorted((out_dir / "raw").glob("*.json")):
+        skeleton_path = out_dir / "skeletons" / f"{raw_path.stem}.jsonl"
+        if not skeleton_path.exists():
+            continue
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        specs = [Spec(**s) for s in raw["specs"]]
+        skeletons, errors, fixes = parse_response(raw["response"], specs, raw["batch_id"],
+                                                  raw["template_id"], raw["model"])
+        if len(skeletons) == raw["n_valid"] and errors == raw["errors"]:
+            continue
+        gained += len(skeletons) - raw["n_valid"]
+        print(f"{raw['batch_id']}: {raw['n_valid']} -> {len(skeletons)} valid", flush=True)
+        raw.update(n_valid=len(skeletons), errors=errors, fixes=fixes)
+        raw_path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_conversations(skeleton_path, skeletons)
+    print(f"reparse: {gained:+d} conversations", flush=True)
 
 
 def run_batches(
