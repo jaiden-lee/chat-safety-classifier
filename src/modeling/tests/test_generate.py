@@ -174,3 +174,59 @@ def test_backend_waits_out_usage_limits_and_gives_up_on_other_errors(monkeypatch
     with pytest.raises(llm_backend.LLMError):
         backend.complete("p", model="sonnet", system="s")
     assert sleeps == [1, 2]  # 1 try + 2 retries with exponential backoff
+
+
+def _good(spec: int) -> dict:
+    item = json.loads(json.dumps(GOOD))
+    item["spec"] = spec
+    return item
+
+
+def test_salvages_conversations_around_malformed_json():
+    specs = _specs(3)
+    text = ("[" + json.dumps(_good(1)) + ", {\"spec\": 2, \"messages\": [ {broken ,"
+            + json.dumps(_good(3)) + "]")
+    skeletons, errors, _ = gen.parse_response(text, specs, "b", "t", "m")
+    assert [s.conversation_id for s in skeletons] == ["b-c01", "b-c03"]
+    assert any("malformed JSON" in e for e in errors)
+    assert "spec 2: missing from response" in errors
+
+
+def test_salvages_conversations_after_an_early_close_and_rambling():
+    specs = _specs(2)
+    text = "[" + json.dumps(_good(1)) + "] Wait, one more: " + json.dumps(_good(2)) + " ]"
+    skeletons, errors, _ = gen.parse_response(text, specs, "b", "t", "m")
+    assert len(skeletons) == 2 and errors == []
+
+
+def test_lowercase_speakers_and_formations_are_accepted():
+    item = _with_text("we run 4-2-3-1 this game")
+    item["messages"][0]["speaker"] = "a"
+    skeletons, errors, _ = gen.parse_response(_response([item]), _specs(1), "b", "t", "m")
+    assert errors == [] and skeletons[0].messages[0].speaker_id == "A"
+
+
+def test_batch_with_no_valid_conversations_is_retried(tmp_path):
+    import pytest
+
+    from modeling.data.skeletons.llm_backend import LLMError
+    backend = FakeBackend("sorry, no JSON here")
+    with pytest.raises(LLMError):
+        gen.run_batch(backend, tmp_path, "skeleton_v1", 0, 0, 1, "haiku")
+    assert not (tmp_path / "skeletons" / "skeleton_v1-s0-b0000.jsonl").exists()
+    backend.text = _response([GOOD])
+    assert gen.run_batch(backend, tmp_path, "skeleton_v1", 0, 0, 1, "haiku") is not None
+
+
+def test_reparse_recovers_previously_rejected_conversations(tmp_path):
+    item = _with_text("we run 4-2-3-1 this game")
+    item["messages"][0]["speaker"] = "a"
+    gen.run_batch(FakeBackend(_response([GOOD, _good(2) | {"messages": item["messages"]}])),
+                  tmp_path, "skeleton_v1", 0, 0, 2, "haiku")
+    raw_path = tmp_path / "raw" / "skeleton_v1-s0-b0000.json"
+    raw = json.loads(raw_path.read_text(encoding="utf-8"))
+    raw.update(n_valid=1, errors=["spec 2: old stricter rule"])  # as if parsed by old code
+    raw_path.write_text(json.dumps(raw), encoding="utf-8")
+    gen.reparse(tmp_path)
+    assert json.loads(raw_path.read_text(encoding="utf-8"))["n_valid"] == 2
+    assert len(list(read_conversations(tmp_path / "skeletons" / "skeleton_v1-s0-b0000.jsonl"))) == 2
