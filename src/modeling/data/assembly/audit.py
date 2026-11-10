@@ -12,11 +12,8 @@ import pandas as pd
 
 from modeling.data.assembly.conda import might_be_contact_info
 from modeling.data.assembly.split import SPLITS
+from modeling.eval.metrics import Q2_HARD_TAGS, Q3_NEG_TYPES
 from modeling.schema import Conversation
-
-# Q3's look-alike negatives (design doc §6.1 "Hard negatives").
-Q3_NEG_TYPES = ("number_lookalike", "ingame_social", "app_topic", "ingame_name_reference")
-Q2_HARD_TAGS = ("obfuscated", "cross_message")
 
 TARGETS = {
     "test_positives_min": 2000,
@@ -78,7 +75,7 @@ def _check_targets(splits: dict) -> list[dict]:
     for split in ("val", "test"):
         rate = splits[split]["positive_rate"]
         checks.append((f"{split} positive rate", rate, f"{lo:.0%}-{hi:.0%}", lo <= rate <= hi))
-    for tag in Q2_HARD_TAGS:
+    for tag in sorted(Q2_HARD_TAGS):
         n = test["positives_by_hard_tag"].get(tag, 0)
         checks.append((f"test {tag} positives (Q2)", n, f">= {TARGETS['test_q2_slice_min']}",
                        n >= TARGETS["test_q2_slice_min"]))
