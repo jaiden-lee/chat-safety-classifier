@@ -1,0 +1,350 @@
+{
+  "batch_id": "skeleton_v1-s0-b0239",
+  "template_id": "skeleton_v1",
+  "seed": 0,
+  "requested_model": "sonnet",
+  "model": "claude-sonnet-5-5",
+  "duration_s": 145.51600000006147,
+  "output_tokens": 22756,
+  "thinking_tokens": 10717,
+  "specs": [
+    {
+      "index": 1,
+      "channel_type": "direct",
+      "n_speakers": 2,
+      "n_messages": 24,
+      "game": "a farming and life sim",
+      "style": "chill older players, full words but casual",
+      "focus": "negative",
+      "targets": [
+        "ingame_social"
+      ],
+      "descriptions": [
+        "players add each other in game, invite to parties, or share lobby codes (use IGN, LOBBY_CODE slots); everything stays in game"
+      ]
+    },
+    {
+      "index": 2,
+      "channel_type": "group",
+      "n_speakers": 3,
+      "n_messages": 6,
+      "game": "a mobile MOBA",
+      "style": "casual younger teens, lots of slang and typos",
+      "focus": "negative",
+      "targets": [
+        "app_topic"
+      ],
+      "descriptions": [
+        "players mention other apps only as topics (an app being down, a video they saw, the game's official account); nobody shares or asks for contact info"
+      ]
+    },
+    {
+      "index": 3,
+      "channel_type": "group",
+      "n_speakers": 6,
+      "n_messages": 18,
+      "game": "a fantasy MMO",
+      "style": "minimal punctuation, everything lowercase, very short messages",
+      "focus": "positive",
+      "targets": [
+        "location/plain",
+        "handle/plain"
+      ],
+      "descriptions": [
+        "a player mentions their school or the street they live on",
+        "a player shares their handle on another app, naming the app"
+      ]
+    },
+    {
+      "index": 4,
+      "channel_type": "direct",
+      "n_speakers": 2,
+      "n_messages": 20,
+      "game": "a parkour obstacle-course game",
+      "style": "friendly and chatty, lots of emotes and lol",
+      "focus": "positive",
+      "targets": [
+        "email/obfuscated",
+        "handle/obfuscated"
+      ],
+      "descriptions": [
+        "a player shares an email disguised to dodge the filter (mark with !)",
+        "a player shares a handle and the app name disguised to dodge the filter (mark those slots with !)"
+      ]
+    },
+    {
+      "index": 5,
+      "channel_type": "group",
+      "n_speakers": 5,
+      "n_messages": 18,
+      "game": "a collectible card battler",
+      "style": "mixed: one chatty player, others terse",
+      "focus": "positive",
+      "targets": [
+        "handle/plain",
+        "platform_move/implicit"
+      ],
+      "descriptions": [
+        "a player shares a friend's or sibling's handle on another app",
+        "a player suggests talking somewhere more private, without naming an app"
+      ]
+    },
+    {
+      "index": 6,
+      "channel_type": "group",
+      "n_speakers": 6,
+      "n_messages": 23,
+      "game": "a soccer game",
+      "style": "competitive tryhards, short callouts, some trash talk",
+      "focus": "negative",
+      "targets": [
+        "number_lookalike"
+      ],
+      "descriptions": [
+        "players talk about scores, elo, match ids, or coordinates (use SCORE, ELO, KD, MATCH_ID, COORDS slots); no contact info"
+      ]
+    },
+    {
+      "index": 7,
+      "channel_type": "group",
+      "n_speakers": 5,
+      "n_messages": 10,
+      "game": "a battle royale shooter",
+      "style": "chill older players, full words but casual",
+      "focus": "positive",
+      "targets": [
+        "handle/plain",
+        "phone/obfuscated"
+      ],
+      "descriptions": [
+        "a player posts a server invite or profile link, or promotes their own stream or channel",
+        "a player shares a phone number disguised to dodge the filter (mark the slot with !)"
+      ]
+    },
+    {
+      "index": 8,
+      "channel_type": "group",
+      "n_speakers": 3,
+      "n_messages": 12,
+      "game": "a mobile MOBA",
+      "style": "casual younger teens, lots of slang and typos",
+      "focus": "positive",
+      "targets": [
+        "handle/cross_message",
+        "handle/plain"
+      ],
+      "descriptions": [
+        "one player asks another for their handle on an app; the other replies in a later message with just the handle",
+        "a player shares their handle on another app, naming the app"
+      ]
+    },
+    {
+      "index": 9,
+      "channel_type": "group",
+      "n_speakers": 4,
+      "n_messages": 20,
+      "game": "a block-building sandbox",
+      "style": "casual younger teens, lots of slang and typos",
+      "focus": "positive",
+      "targets": [
+        "handle/implicit",
+        "platform_move/implicit"
+      ],
+      "descriptions": [
+        "a player points others to their account on another app without naming it (a euphemism, or 'same name as here')",
+        "a player suggests talking somewhere more private, without naming an app"
+      ]
+    },
+    {
+      "index": 10,
+      "channel_type": "group",
+      "n_speakers": 4,
+      "n_messages": 13,
+      "game": "a block-building sandbox",
+      "style": "competitive tryhards, short callouts, some trash talk",
+      "focus": "negative",
+      "targets": [
+        "refusal_warning"
+      ],
+      "descriptions": [
+        "someone asks for contact info and is refused, or players warn each other not to share it (the request itself is still positive)"
+      ]
+    },
+    {
+      "index": 11,
+      "channel_type": "group",
+      "n_speakers": 6,
+      "n_messages": 6,
+      "game": "a tactical FPS",
+      "style": "minimal punctuation, everything lowercase, very short messages",
+      "focus": "negative",
+      "targets": [
+        "coarse_location"
+      ],
+      "descriptions": [
+        "players say what country, state, city, or timezone they're in; nothing more specific"
+      ]
+    },
+    {
+      "index": 12,
+      "channel_type": "group",
+      "n_speakers": 3,
+      "n_messages": 19,
+      "game": "a co-op horror game",
+      "style": "mixed: one chatty player, others terse",
+      "focus": "positive",
+      "targets": [
+        "location/cross_message",
+        "phone/implicit",
+        "email/plain"
+      ],
+      "descriptions": [
+        "a player asks what school or street another lives on, and gets an answer later",
+        "a player asks for a number using slang, without saying 'phone'",
+        "a player shares an email address to send something"
+      ]
+    },
+    {
+      "index": 13,
+      "channel_type": "group",
+      "n_speakers": 4,
+      "n_messages": 11,
+      "game": "a farming and life sim",
+      "style": "mixed: one chatty player, others terse",
+      "focus": "positive",
+      "targets": [
+        "phone/implicit",
+        "email/obfuscated"
+      ],
+      "descriptions": [
+        "a player asks for a number using slang, without saying 'phone'",
+        "a player shares an email disguised to dodge the filter (mark with !)"
+      ]
+    },
+    {
+      "index": 14,
+      "channel_type": "direct",
+      "n_speakers": 2,
+      "n_messages": 15,
+      "game": "a battle royale shooter",
+      "style": "competitive tryhards, short callouts, some trash talk",
+      "focus": "positive",
+      "targets": [
+        "phone/cross_message",
+        "phone/obfuscated"
+      ],
+      "descriptions": [
+        "a player sends a phone number split across 2-3 messages, using fragment slots",
+        "a player shares a phone number disguised to dodge the filter (mark the slot with !)"
+      ]
+    },
+    {
+      "index": 15,
+      "channel_type": "group",
+      "n_speakers": 4,
+      "n_messages": 17,
+      "game": "a tactical FPS",
+      "style": "friendly and chatty, lots of emotes and lol",
+      "focus": "positive",
+      "targets": [
+        "platform_move/plain",
+        "email/plain"
+      ],
+      "descriptions": [
+        "a player suggests moving the chat to a named app",
+        "a player shares an email address to send something"
+      ]
+    },
+    {
+      "index": 16,
+      "channel_type": "group",
+      "n_speakers": 6,
+      "n_messages": 11,
+      "game": "a farming and life sim",
+      "style": "competitive tryhards, short callouts, some trash talk",
+      "focus": "positive",
+      "targets": [
+        "handle/obfuscated",
+        "handle/plain"
+      ],
+      "descriptions": [
+        "a player shares a handle and the app name disguised to dodge the filter (mark those slots with !)",
+        "a player posts a server invite or profile link, or promotes their own stream or channel"
+      ]
+    },
+    {
+      "index": 17,
+      "channel_type": "group",
+      "n_speakers": 6,
+      "n_messages": 16,
+      "game": "a survival crafting game",
+      "style": "mixed: one chatty player, others terse",
+      "focus": "positive",
+      "targets": [
+        "phone/implicit",
+        "email/obfuscated"
+      ],
+      "descriptions": [
+        "a player asks for a number using slang, without saying 'phone'",
+        "a player shares an email disguised to dodge the filter (mark with !)"
+      ]
+    },
+    {
+      "index": 18,
+      "channel_type": "direct",
+      "n_speakers": 2,
+      "n_messages": 12,
+      "game": "a fantasy MMO",
+      "style": "minimal punctuation, everything lowercase, very short messages",
+      "focus": "positive",
+      "targets": [
+        "location/plain",
+        "phone/plain"
+      ],
+      "descriptions": [
+        "a player shares a ZIP code or suggests meeting up in person",
+        "a player shares a phone number or asks to be texted"
+      ]
+    },
+    {
+      "index": 19,
+      "channel_type": "group",
+      "n_speakers": 3,
+      "n_messages": 15,
+      "game": "a kart racing game",
+      "style": "casual younger teens, lots of slang and typos",
+      "focus": "positive",
+      "targets": [
+        "handle/plain",
+        "phone/implicit"
+      ],
+      "descriptions": [
+        "a player shares a friend's or sibling's handle on another app",
+        "a player asks for a number using slang, without saying 'phone'"
+      ]
+    },
+    {
+      "index": 20,
+      "channel_type": "group",
+      "n_speakers": 3,
+      "n_messages": 11,
+      "game": "a parkour obstacle-course game",
+      "style": "casual younger teens, lots of slang and typos",
+      "focus": "positive",
+      "targets": [
+        "phone/obfuscated",
+        "handle/plain",
+        "email/obfuscated"
+      ],
+      "descriptions": [
+        "a player shares a phone number disguised to dodge the filter (mark the slot with !)",
+        "a player posts a server invite or profile link, or promotes their own stream or channel",
+        "a player shares an email disguised to dodge the filter (mark with !)"
+      ]
+    }
+  ],
+  "n_valid": 20,
+  "errors": [],
+  "fixes": [],
+  "response": "[{\"spec\":1,\"messages\":[{\"speaker\":\"A\",\"text\":\"morning! did you get your crops watered yet\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"just finished, the rain helped a lot\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"nice. i'm heading to the mines later, want to join my party\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"sure, send me an invite\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"A\",\"text\":\"my in game name is {IGN}, add me if you haven't\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"added you. mine is {IGN#2}\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"A\",\"text\":\"got it, accepting now\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"thanks. i'm on the farm at the north end\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok sending the lobby code, it's {LOBBY_CODE}\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"joining now\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"A\",\"text\":\"you should see my cabin when you load in\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"loaded. the porch decorations are lovely\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"thanks, took me all season\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"do you want to trade some seeds\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"yes please, i need pumpkin and a few melon\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"i'll drop them at the shipping bin\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"perfect. the festival is tomorrow, join my party again after?\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"yes, i'll send a party invite to {IGN} when i log in\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"A\",\"text\":\"sounds good, new lobby code will be {LOBBY_CODE#2}\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"B\",\"text\":\"got it\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"how's the fishing going\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"caught a legendary yesterday, so proud\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"wow congrats\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"thanks, see you at the festival\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":2,\"messages\":[{\"speaker\":\"A\",\"text\":\"yo is tiktok down for u guys? mine wont load\",\"label\":0,\"neg_type\":\"app_topic\"},{\"speaker\":\"B\",\"text\":\"ya same lol its been down all mornin\",\"label\":0,\"neg_type\":\"app_topic\"},{\"speaker\":\"C\",\"text\":\"i saw a vid on youtube bout the new hero omg hes broken\",\"label\":0,\"neg_type\":\"app_topic\"},{\"speaker\":\"A\",\"text\":\"fr the offical game insta posted the patch notes\",\"label\":0,\"neg_type\":\"app_topic\"},{\"speaker\":\"B\",\"text\":\"wait whats the nerf\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"his ult dmg got cut lmaooo\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":3,\"messages\":[{\"speaker\":\"A\",\"text\":\"anyone doing the dragon raid\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"me\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"need healer\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"i can heal\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok forming party\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"E\",\"text\":\"gotta log soon i go to {SCHOOL} tmrw\",\"label\":1,\"categories\":[\"location\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"F\",\"text\":\"bruh\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"boss phase 2 inc\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"dodge the fire\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"nice kill\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"gg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"F\",\"text\":\"loot split?\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"i need that sword\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"roll for it\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"F\",\"text\":\"i stream these lol my insta is {HANDLE:instagram}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"D\",\"text\":\"cool\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"next run in 5\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"brb\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":4,\"messages\":[{\"speaker\":\"A\",\"text\":\"heyyy that last course was insane lol 😂\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"omg the laser room 😭 i died like 20 times\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"lol same, the wall run part is evil\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"u gotta time the jump 😅\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok i'll try again, gg btw\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ty!! u r so good 🔥\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"oh i recorded my run, wanna see lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"yesss send it 😍\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok email me and i'll send it, {EMAIL!} 😄\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"B\",\"text\":\"ok emailing u now 🙌\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"lol cool\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok try the new map, the checkpoint at the top is hidden\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"wait where 😮\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"behind the big spinning ring lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"omg found it!! 🎉\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ok also add me on {PLATFORM:snapchat!} its {HANDLE:snapchat!} 😊\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"A\",\"text\":\"ok adding u rn lol\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"yay 🎉\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"ok one more run? 😂\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"yesss lets go 🔥\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":5,\"messages\":[{\"speaker\":\"A\",\"text\":\"ok so i just pulled a legendary from the pack omg omg omg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"nice\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"which\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"the dragon knight!!! ive been grinding for it all week lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"mid\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"lol rude, its so good in my deck tho\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"wanna duel\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"yes lets go, my brother is also hella good at this game, hes the one who got me into it\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"cool\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ya his insta is {HANDLE:instagram}, he posts all his deck builds\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"C\",\"text\":\"bet\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"E\",\"text\":\"my turn\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"nice play\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"thx. hey btw we should talk somewhere more private, ive got a deck idea i dont wanna share w everybody here\",\"label\":1,\"categories\":[\"platform_move\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"B\",\"text\":\"lol nah just say it here\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"C\",\"text\":\"gg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok fine its basically a mill deck lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"ew\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":6,\"messages\":[{\"speaker\":\"A\",\"text\":\"that was a 3-0 lets gooo\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"my elo is {ELO} now lol\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"C\",\"text\":\"ur elo is trash, im {ELO#2}\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"D\",\"text\":\"sit down both of u\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"match {MATCH_ID} was rigged, ref was blind\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"A\",\"text\":\"lol cope\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"F\",\"text\":\"my kd this season is {KD} rn\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"B\",\"text\":\"kd in soccer isnt a thing bro\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"F\",\"text\":\"goals-conceded ok shut up\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"my score {SCORE} last match\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"D\",\"text\":\"weak, i did {SCORE#2}\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"E\",\"text\":\"pass the ball not just score lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"meet at {COORDS} for the training map\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"B\",\"text\":\"omw\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"F\",\"text\":\"line up at {COORDS#2} for corner drills\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"C\",\"text\":\"bet\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"ur defense is asleep\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"match {MATCH_ID#2} was my best ever\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"A\",\"text\":\"rematch?\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ill beat ur {SCORE}\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"F\",\"text\":\"lol ok\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"queue up\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"gg\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":7,\"messages\":[{\"speaker\":\"A\",\"text\":\"good game everyone, that last circle was brutal\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"yeah the storm killed me lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"anyone want another round\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"sure, im in\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"i stream these matches btw, come watch {LINK:twitch}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"A\",\"text\":\"nice, i'll check it out later\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"hey about the squad schedule, text me at {PHONE!}\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"C\",\"text\":\"ok will do\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"D\",\"text\":\"ready up\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"dropping at the docks\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":8,\"messages\":[{\"speaker\":\"A\",\"text\":\"gg wp that baron fight was wild\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lmaoo ya my jungler was afk\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"bruh stop blaming ur jg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"b whats ur {PLATFORM:discord} i wanna add u\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"{HANDLE:discord}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"cross_message\"]},{\"speaker\":\"A\",\"text\":\"added\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"C\",\"text\":\"wtf nobody asked me lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"ok my insta is {HANDLE:instagram} follow me\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"followed\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"queue again?\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ya\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"i main mage fr\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":9,\"messages\":[{\"speaker\":\"A\",\"text\":\"just finished my castle omg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lemme see\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"its on the hill by spawn\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"bro that tower is so tall\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"how long it take\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"like 3 days lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"i built a farm\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"nice, we need food\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"lol creeper blew up my house\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"skill issue\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"i post my builds on {PLATFORM_HINT:snapchat}, same name as here\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"C\",\"text\":\"cool ill look\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"ok im gonna get the diamonds\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"wait for me\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"guys we should talk somewhere more private, theres a thing i wanna tell u\",\"label\":1,\"categories\":[\"platform_move\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"C\",\"text\":\"what thing\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"just say it here lol\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"A\",\"text\":\"nvm its about the server event\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"lol ok\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"lets mine\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":10,\"messages\":[{\"speaker\":\"A\",\"text\":\"gg that bridge rush was clean\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ya ur bed defense was trash\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"shut up lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"yo C whats ur {PLATFORM:snapchat}, ill add u\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"C\",\"text\":\"not giving that out\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"A\",\"text\":\"dont share personal stuff in here lol\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"D\",\"text\":\"relax i just wanna play\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"add him ingame instead, his ign is {IGN}\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"C\",\"text\":\"ok sending request\",\"label\":0,\"neg_type\":\"ingame_social\"},{\"speaker\":\"A\",\"text\":\"bridge rush again\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"im in\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"i go diamond armor\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"nice\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":11,\"messages\":[{\"speaker\":\"A\",\"text\":\"where u all from\",\"label\":0,\"neg_type\":\"coarse_location\"},{\"speaker\":\"B\",\"text\":\"texas\",\"label\":0,\"neg_type\":\"coarse_location\"},{\"speaker\":\"C\",\"text\":\"{COUNTRY}\",\"label\":0,\"neg_type\":\"coarse_location\"},{\"speaker\":\"D\",\"text\":\"{CITY} here\",\"label\":0,\"neg_type\":\"coarse_location\"},{\"speaker\":\"E\",\"text\":\"{STATE} its late rn\",\"label\":0,\"neg_type\":\"coarse_location\"},{\"speaker\":\"F\",\"text\":\"my timezone is est\",\"label\":0,\"neg_type\":\"coarse_location\"}]},{\"spec\":12,\"messages\":[{\"speaker\":\"A\",\"text\":\"ok ok ok dont go in the basement i swear something is down there\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"im scared\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"guys that sound was literally behind me omg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"flashlight dying\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"hey C what school do u go to btw, i feel like we're the same age lol\",\"label\":1,\"categories\":[\"location\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"C\",\"text\":\"brb\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"door locked\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"use the key from the kitchen!!\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"{SCHOOL}\",\"label\":1,\"categories\":[\"location\"],\"hard_tags\":[\"cross_message\"]},{\"speaker\":\"A\",\"text\":\"lol nice\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"ghost left\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok B gimme ur digits so we can group up outside the game\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"B\",\"text\":\"nah\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"A\",\"text\":\"fine fine lol. btw i wanna edit the jumpscare clip, send it to {EMAIL}\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"C\",\"text\":\"ok sending\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"run to the exit\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"AAAAA\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"we made it\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":13,\"messages\":[{\"speaker\":\"A\",\"text\":\"ok so i just finished the whole greenhouse and im so proud omg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"nice\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"sell price?\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"tons per crate lol, dont ask how long that took\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"gimme ur digits A so we can plan market day\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"B\",\"text\":\"nope not giving mine\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"A\",\"text\":\"ok then email me at {EMAIL!} and i'll send the crop planner\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"C\",\"text\":\"ok\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"D\",\"text\":\"anyone wanna trade\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"cow just had a baby\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"aww\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":14,\"messages\":[{\"speaker\":\"A\",\"text\":\"nice drop, we got first loot\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"they pushed late lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"bro u 1 tapped him\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ez\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"send me ur number so we can plan comp scrims\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"{PHONE~1/3}\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"cross_message\"]},{\"speaker\":\"B\",\"text\":\"{PHONE~2/3}\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"cross_message\"]},{\"speaker\":\"B\",\"text\":\"{PHONE~3/3}\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"cross_message\"]},{\"speaker\":\"A\",\"text\":\"got it, saving\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"circle closing\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ok mine is {PHONE#2!} text me after\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"B\",\"text\":\"got it\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"rotate to the hill\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"third party incoming\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"clutched gg\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":15,\"messages\":[{\"speaker\":\"A\",\"text\":\"lol that defuse was so close 😂\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"my heart!! 😭\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"gg team\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"gg 🔥\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"yall are so fun, lets move this to {PLATFORM:discord} so we can chat easier lol\",\"label\":1,\"categories\":[\"platform_move\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"omg yes 😍\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"C\",\"text\":\"lol im busy tho\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"haha okay\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"round 2 starting 😂\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"push mid\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"ur clip from that ace is insane btw 🔥\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"send it to my email and ill edit it, {EMAIL} lol 😂\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"C\",\"text\":\"ok sending 😄\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"nice\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"plant the bomb\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"covering!\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"gg wp\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":16,\"messages\":[{\"speaker\":\"A\",\"text\":\"my pumpkins beat yours easy\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lol cope\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"ur farm is trash\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"add me on {PLATFORM:snapchat!} its {HANDLE:snapchat!}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"E\",\"text\":\"no thanks\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"F\",\"text\":\"i stream the harvest tourney, {LINK:twitch}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"A\",\"text\":\"lol ill watch\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"sell ur crops fast\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"market opens in 5\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"beating all of u\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"gg\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":17,\"messages\":[{\"speaker\":\"A\",\"text\":\"ok team we need wood, stone, and like a ton of berries before night omg\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"on it\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"wolves near the lake\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"lol run\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"guys i built a base with a gate!! come see it\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"E\",\"text\":\"coords?\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"its at {COORDS} near the river\",\"label\":0,\"neg_type\":\"number_lookalike\"},{\"speaker\":\"F\",\"text\":\"omw\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"gimme ur digits A we could coordinate better\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"A\",\"text\":\"nah lol not here\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"C\",\"text\":\"smart\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"D\",\"text\":\"email me at {EMAIL!} and ill send my base blueprint\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"E\",\"text\":\"kk\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"F\",\"text\":\"night is coming\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"everyone in base\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"closing gate\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":18,\"messages\":[{\"speaker\":\"A\",\"text\":\"nice run\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ty u too\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ur a good mage\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lol thx\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"u close to me? my zip is {ZIP}\",\"label\":1,\"categories\":[\"location\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"no way lol\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"lol ok\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"boss respawn soon\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"text me {PHONE} when u log in\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"ok\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"pull the boss\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"pulling\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":19,\"messages\":[{\"speaker\":\"A\",\"text\":\"omg that blue shell again\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"lmaooo\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"gg u got robbed\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"bro i was first\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"skill issue\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"my lil bro wants to play w us, his {PLATFORM:snapchat} is {HANDLE:snapchat}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"A\",\"text\":\"cool\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"ok queue\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"pick rainbow road\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"no\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"gimme ur digits C so we can plan races\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"implicit\"]},{\"speaker\":\"C\",\"text\":\"lol nah\",\"label\":0,\"neg_type\":\"refusal_warning\"},{\"speaker\":\"A\",\"text\":\"lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ok start\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"drift!!\",\"label\":0,\"neg_type\":\"easy\"}]},{\"spec\":20,\"messages\":[{\"speaker\":\"A\",\"text\":\"i just beat the lava level lol\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"no way\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"C\",\"text\":\"sus\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"A\",\"text\":\"ya text me {PHONE!} and ill send the vid\",\"label\":1,\"categories\":[\"phone\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"B\",\"text\":\"ok bet\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"C\",\"text\":\"i got a yt channel too, check it {LINK:youtube}\",\"label\":1,\"categories\":[\"handle\"],\"hard_tags\":[\"plain\"]},{\"speaker\":\"B\",\"text\":\"subbing\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"B\",\"text\":\"u guys can email me clips too, {EMAIL!}\",\"label\":1,\"categories\":[\"email\"],\"hard_tags\":[\"obfuscated\"]},{\"speaker\":\"C\",\"text\":\"ok\",\"label\":0,\"neg_type\":\"post_exchange\"},{\"speaker\":\"A\",\"text\":\"next level\",\"label\":0,\"neg_type\":\"easy\"},{\"speaker\":\"B\",\"text\":\"ez\",\"label\":0,\"neg_type\":\"easy\"}]}]"
+}
