@@ -30,7 +30,8 @@ def test_conda_matches_become_group_conversations(tmp_path):
             _row(4, 7, 40, "ez"), _row(5, 8, 5, "join twitch.tv/somebody"), _row(6, 8, 6, "no")]
     _write_conda(tmp_path, rows)
     convs, stats = conda.load_matches(tmp_path, seed=1)
-    assert stats == {"matches": 2, "dropped_contact_like": 1, "kept": 1}
+    assert stats == {"matches": 2, "dropped_contact_like": 1, "dropped_reviewed_positive": 0,
+                     "kept": 1}
     (conv,) = convs
     assert conv.conversation_id == "conda-m7" and conv.channel_type == "group"
     assert [m.text for m in conv.messages] == ["hi all", "mid", "gg", "wp", "ez"]

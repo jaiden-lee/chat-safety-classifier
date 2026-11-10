@@ -16,6 +16,10 @@ How it becomes Conversations:
   info (a URL, an email, a run of 7+ digits) are dropped, since those would be unlabeled
   positives (e.g., "twitch.tv/<name>"). Keyword hits like "fb" (first blood) or "steam lag" are
   kept: they're realistic look-alike negatives.
+- A keyword scan of the remaining messages (platform names, "add me", "phone", "email", ...)
+  was read by hand; matches with a message that is positive under our guidelines are listed in
+  REVIEWED_POSITIVE_MATCHES and dropped too. Positives without such keywords may remain; the
+  rate looks very low (5 found in ~60k messages).
 """
 
 from __future__ import annotations
@@ -32,6 +36,16 @@ from modeling.schema import ChannelType, Conversation, Message, NegType, Provena
 CONDA_FILES = ("train.csv", "valid.csv", "test.csv")
 CONDA_URL = "https://huggingface.co/datasets/Matrix430/CONDA/resolve/main/{name}"
 LINE_SEPARATOR = "[SEPA]"
+
+# Matches with a message that's positive under our guidelines, found by hand-reading a keyword
+# scan of the screened data (match id: the message).
+REVIEWED_POSITIVE_MATCHES = {
+    "358": "wat is ur facebook",
+    "1228": "do u guys have a twitter??",
+    "1438": "add me on tidner",
+    "1778": "follow me on instagram ...",
+    "2007": "send me your email so i can send you a video ...",
+}
 
 _CONTACT_PATTERNS = [
     (re.compile(r"https?://|www\.|\b[\w-]+\.(com|gg|me|tv|net|org|io|ru)\b", re.IGNORECASE), 0),
@@ -68,17 +82,20 @@ def load_matches(conda_dir: Path, seed: int = 0) -> tuple[list[Conversation], di
                 utterances[row["matchId"]].append(
                     (float(row["chatTime"]), int(row["Id"]), row["utterance"]))
 
-    conversations, dropped = [], []
+    conversations, dropped, reviewed = [], [], []
     for match_id in sorted(utterances, key=int):
         rows = sorted(utterances[match_id])  # by chatTime, then Id
         if any(might_be_contact_info(text) for _, _, text in rows):
             dropped.append(match_id)
             continue
+        if match_id in REVIEWED_POSITIVE_MATCHES:
+            reviewed.append(match_id)
+            continue
         conv = _to_conversation(match_id, rows, random.Random(f"{seed}:conda:{match_id}"))
         if conv is not None:
             conversations.append(conv)
     stats = {"matches": len(utterances), "dropped_contact_like": len(dropped),
-             "kept": len(conversations)}
+             "dropped_reviewed_positive": len(reviewed), "kept": len(conversations)}
     return conversations, stats
 
 
