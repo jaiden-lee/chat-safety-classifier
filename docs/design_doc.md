@@ -133,9 +133,7 @@ to response sent, excluding network transit to and from the chat backend.
 - **Recall** = fraction of contact-sharing messages that are blocked.
 - **False-block rate (FPR)** = fraction of clean messages that are blocked.
   Unlike precision, recall and FPR don't depend on how common positives are,
-  so they are used for requirements.
-- **Implied precision** at an assumed real-world positive rate π:
-  precision = recall·π / (recall·π + FPR·(1 − π)). Reported for context, not a gate.
+  so they are used for requirements (§6.3).
 - **Operating threshold** is chosen on the validation set as the threshold meeting
   Q1, then fixed for all test and serving measurements.
 
@@ -159,7 +157,7 @@ All quality targets are evaluated at the single operating threshold.
 | Q1 | Overall detection | Recall ≥ 0.90 at FPR ≤ 0.1% (≤ 1 false block per 1,000 clean messages) | Misses are safety failures, so recall comes first; the FPR cap bounds how often innocent users are blocked. | P1, P2 |
 | Q2 | Hard cases | Recall ≥ 0.75 on obfuscated and cross-message positives | These are the cases that justify a model over keyword filters. | P1, P2 |
 | Q3 | Hard negatives | FPR ≤ 0.5% on look-alike clean messages (game scores, in-game friend requests, talking *about* other apps) | Look-alike negatives are what drive false blocks in practice. | P1, P2 |
-| Q4 | Beats baseline | Recall ≥ 0.15 above a regex + PII-tagger baseline at the same FPR | If the model doesn't clearly beat rules, it isn't worth its cost. | P1 |
+| Q4 | Beats baseline | Recall ≥ 0.15 above a regex baseline, with the model at the regex's FPR (§6.5) | If the model doesn't clearly beat rules, it isn't worth its cost. | P1 |
 | Q5 | Compression guardrail | Optimized models lose ≤ 1 point of recall vs. the full model at the same FPR | Speedups can't come out of safety. | P2 |
 
 ### Operational
@@ -341,7 +339,7 @@ doesn't use reply or mention structure.
 | # | Decision | Choice | Alternatives considered | Rationale |
 |---|---|---|---|---|
 | D1 | What is scored | The newest message, judged with its conversation context; binary label + score | Score the whole conversation; per-type labels | The platform acts on the incoming message, so that's what gets judged. Binary keeps evaluation simple; per-type labels are a later extension. |
-| D2 | Model family | Small fine-tuned encoder (BERT-base to start; distilled variants evaluated in P2) | LLM judge; regex + PII tagger; per-message classifier without context | Fits the latency and cost budget (§4). An LLM is roughly two orders of magnitude more compute per message (§4.6). Rules fail on obfuscated and cross-message cases (Q2). Context is required for the core cases. |
+| D2 | Model family | Small fine-tuned encoder (BERT-base to start; distilled variants evaluated in P2) | LLM judge; regex rules; per-message classifier without context | Fits the latency and cost budget (§4). An LLM is roughly two orders of magnitude more compute per message (§4.6). Rules fail on obfuscated and cross-message cases (Q2). Context is required for the core cases. |
 | D3 | Multi-party handling | One model call per message, with relative speaker tags | One call per pair of participants | Pairwise grows with participants²; a single call with speaker roles captures who said what at constant cost. Blocking sharing in a group is as important as in a DM. |
 | D4 | Context selection | Most recent messages that fit a token budget (§5.2), from the last 50 | Fixed last-k messages; priority rules (e.g., the author's older messages); larger window | Bounds n by tokens rather than message count, so cost stays predictable; attention cost grows with n². Priority rules were dropped so serving (possibly non-Python) can reproduce the builder exactly. |
 | D5 | Input encoding | Context as segment A, new message as segment B (BERT token-type IDs) | Concatenate with a separator only | Uses an existing BERT feature to mark exactly which message is being judged. |
@@ -374,21 +372,21 @@ doesn't use reply or mention structure.
 
 | Set | Purpose | Composition |
 |---|---|---|
-| Train | Fit the model | Synthetic multi-party conversations plus public PII examples. **Class-balanced** (oversampled positives) so the model sees enough positive examples to learn from. |
-| Validation | Choose the operating threshold and compare model candidates | Enriched positive rate (~10–20%), with hard positives and hard negatives represented. |
-| Test | Final, one-time measurement of every Q requirement | Same construction as validation, generated separately. Never used for tuning. |
+| Train | Fit the model | LLM-written conversations with code-filled contact values, real game chat (CONDA, all negative), and synthetic exchanges spliced into real chat. Positives are **oversampled during training** so the model sees enough of them. |
+| Validation | Choose the operating threshold and the best checkpoint | Same construction as train, enriched positive rate (~10%), with hard positives and hard negatives represented. |
+| Test | Final, one-time measurement of every Q requirement | Same construction, disjoint skeletons and matches. Never used for tuning. |
 | Hard positives | Q2 | Positives tagged at generation time: **obfuscated** (spacing, substitution, spelled-out numbers, look-alike characters), **cross-message** (request and answer in different messages, possibly different speakers), **implicit** (no telltale keyword). |
 | Hard negatives | Q3 | Clean messages that resemble positives: game scores and other long numbers, in-game friend requests, mentioning other apps as a topic, referring to another player's in-game username. |
 
-**Leakage control.** Splits are made by conversation *and* by generation template or
-seed, so near-duplicate synthetic conversations can't appear in both train and test.
-Without this, synthetic data inflates every metric.
+**Leakage control.** Splits are made by generated skeleton (all fills and splices of one
+skeleton stay together) and by CONDA match, so near-duplicate conversations can't appear in
+both train and test. Without this, synthetic data inflates every metric. The audit checks
+group overlap and near-duplicates across splits (`docs/data_generation.md`).
 
 **Why the test set is enriched, not realistic.** At a realistic positive rate
 (≤ 1%), measuring recall precisely would need hundreds of thousands of examples.
 Instead, the test set contains plenty of both classes, and recall and FPR, which
-don't depend on the positive rate, are measured directly. Precision at the real
-rate is then *computed* (§6.3).
+don't depend on the positive rate, are measured directly (§6.3).
 
 **Sizing.** Targets: ≥ 2,000 positives and ≥ 50,000 clean messages in test.
 - Recall at 0.90 on 2,000 positives has a 95% interval of about ±1.3 points.
@@ -397,48 +395,64 @@ rate is then *computed* (§6.3).
 
 That's tight enough to tell whether Q1 is met.
 
-### 6.2 Metric choices
+### 6.2 Metrics
 
-| Metric | Role here | Why |
+One primary metric, one constraint, and two secondary metrics, all measured at **one
+operating threshold** (§6.4). Each is reported on test with a 95% binomial (Wilson)
+interval.
+
+| Metric | Role | Target |
 |---|---|---|
-| **Recall** (= 1 − FNR) | **Primary target** (Q1, Q2) | A missed contact exchange is a safety failure. This is the cost we most want to minimize. |
-| **False-block rate (FPR)** | **Constraint on recall** (Q1, Q3) | Fraction of innocent messages that get held. Maps directly to user harm under fail-closed (R7), and doesn't depend on the positive rate (§6.3). |
-| **Recall at FPR ≤ 0.1%** | **The requirement and operating point** | Describes the exact threshold that would be deployed. |
-| Precision | **Reported, computed** at assumed rates π = 0.1% and 1% | The most informative number for rare positives ("what fraction of blocks are wrong?"), but only meaningful at the real positive rate, which is unknown. Computed from recall and FPR rather than measured on synthetic data. |
-| Recall at precision | Not used as the gate | Equivalent to recall at FPR only if π is pinned. Using it would make pass/fail depend on a guessed number. Preferred when labeled production traffic exists, or when each flag costs reviewer time. |
-| PR AUC | **Model selection** (comparing candidates on the same validation set) | Threshold-free summary that behaves well with rare positives. Says how good the whole curve is, not how good the deployed point is. |
-| ROC AUC | Reported only | Threshold-free, but driven by FPR over a huge pool of negatives, so it can look excellent while precision at the real rate is poor. Not used for decisions. |
-| F1 | Not used | Weights false positives and false negatives equally; here a miss is worse than a false block. It also doesn't correspond to a deployable threshold. (F2, which weights recall higher, would be the closer choice if a single number were needed.) |
-| Accuracy | Not used | With rare positives, predicting "clean" for everything scores ≥ 99%. |
-| Calibration (ECE) | Not required now | Matters if scores are consumed downstream (e.g., risk-based routing). Here only the thresholded decision is used. Revisit if a "hold for review" tier is added. |
+| Recall, all positives | **Primary** (Q1) | ≥ 0.90 |
+| FPR, all clean messages | Constraint (Q1); checks that the val threshold holds on test | ≤ 0.1% |
+| Recall, hard positives (obfuscated + cross-message) | Secondary (Q2) | ≥ 0.75 |
+| FPR, look-alike negatives | Secondary (Q3) | ≤ 0.5% |
+
+Recall comes first because a miss is a safety failure. FPR is the constraint because
+it is what users experience: how often a clean message of theirs gets held (R7).
+
+"Look-alike negatives" are clean messages tagged at generation time as game scores and
+other long numbers, in-game friend requests and lobby codes, talking *about* other apps, or
+referring to another player's in-game name.
+
+**Used internally, not reported:** PR AUC on validation, to pick the best checkpoint. It
+needs no threshold, so it compares candidates before a threshold exists.
+
+**Not used:**
+- **Precision**: depends on the positive rate, which the synthetic test set doesn't
+  reflect (§6.3).
+- **ROC AUC and PR AUC as results**: they summarize all thresholds, while only the deployed
+  one matters, and they're undefined for the regex baseline, which has a single point.
+- **F1 and accuracy**: neither corresponds to a deployable threshold. F1 weights misses and
+  false blocks equally, and accuracy is ≥ 99% for a model that never blocks anything.
+- **Calibration**: only the thresholded decision is used. Revisit if a "hold for review"
+  tier is added (§10.2).
 
 ### 6.3 Why FPR instead of precision
 
 Precision = correct blocks ÷ all blocks. Correct blocks scale with the number of
 *harmful* messages; wrong blocks scale with the number of *clean* messages. So the
-same model's precision changes with how rare harmful messages are:
+same model's precision changes with the mix of the two:
 
-| Real positive rate π | Recall | FPR | Precision of the same model |
-|---|---|---|---|
-| 1% | 0.90 | 0.1% | ≈ 0.90 |
-| 0.1% | 0.90 | 0.1% | ≈ 0.47 |
+| Data | Positive rate | Recall | FPR | Precision of the same model |
+|---|---|---|---|---|
+| Our test set | ~9% | 0.90 | 0.1% | ≈ 0.99 |
+| Real chat (assumed) | 0.1% | 0.90 | 0.1% | ≈ 0.47 |
 
 Recall only looks at harmful messages and FPR only looks at clean ones, so neither
-moves with π. Since π is unknown and the synthetic test set doesn't reflect it, the
-requirement uses recall and FPR. Precision is still reported at assumed rates using
+moves with the mix. Our test mix is set by how many positives we generated, so precision
+measured on it says little about production. FPR also matches the harm we care about:
+not how many blocks are wrong, but how often an innocent user is blocked.
 
-    precision(π) = recall·π / (recall·π + FPR·(1 − π))
-
-so a small FPR can't hide the fact that, at very low π, a large share of blocks
-may be wrong. That is the base-rate effect.
+Precision is the better metric when the test set *is* real traffic (e.g., labeled
+production samples), when each flag costs reviewer time, or when negatives can't be
+counted (search, detection). None of these apply here yet.
 
 ### 6.4 Threshold protocol
 
-1. Train candidates; compare them by PR AUC on validation.
-2. For the chosen model, set the threshold on validation: the threshold with the
-   **highest recall subject to FPR ≤ 0.1%**.
-3. Freeze the threshold. Measure Q1–Q3 **once** on test, with 95% confidence
-   intervals (bootstrap).
+1. Train; pick the best checkpoint by PR AUC on validation.
+2. Set the threshold on validation: the **highest recall subject to FPR ≤ 0.1%**.
+3. Freeze the threshold. Measure §6.2 **once** on test.
 4. No changes to model or threshold after viewing test results. If requirements
    are missed, that is the reported result.
 
@@ -447,20 +461,36 @@ re-selected validation threshold and must meet Q5 relative to the full model.
 
 ### 6.5 Baseline (Q4)
 
-A rules baseline of regular expressions for phone numbers, emails, and handle
-patterns, plus an off-the-shelf PII entity detector (e.g., Microsoft Presidio),
-evaluated on the same test set at the same FPR. Expected to do well on plain-text
-positives and near zero on hard positives.
+One deliberately simple rules baseline, no learned components. It looks at the target
+message only and flags it if any of these match:
+- a phone-number pattern (7+ digits, with common separators)
+- an email pattern
+- a link or invite pattern (discord.gg, t.me, wa.me, …)
+- a short list of platform names and solicitation phrases ("snap", "insta",
+  "add me on", "text me", "whats ur …")
 
-### 6.6 Slices
+Its lists are written independently of the data generator's, so it isn't tuned to the
+synthetic values.
 
-Every quality metric is also broken down by:
-- Hard-positive category (obfuscated / cross-message / implicit)
-- Context length (bucketed by tokens)
-- Number of speakers in the context (1:1 vs. group)
-- Channel type (direct message vs. group)
+A regex has no threshold: it has exactly one operating point (one recall, one FPR). So the
+comparison moves the model to the baseline's point: the model's threshold is set on
+validation so its FPR matches the regex's, and recall is compared on test.
 
-A model that meets Q1 overall but fails one slice badly should be visible here.
+| | FPR | Recall, all positives | Recall, hard positives |
+|---|---|---|---|
+| Regex | its own | | |
+| Model at the regex's FPR | same | | |
+| Gap | | **≥ +0.15 (Q4)** | shown, not gated |
+
+Expected: the regex does well on plain positives and near zero on hard ones, where the
+gap should come from.
+
+### 6.6 Diagnostic slices
+
+Not part of the reported results. When a metric misses its target, the same metrics are
+broken down by hard-positive tag (obfuscated / cross-message / implicit), negative type,
+data source (synthetic / real chat / spliced), context length, and channel type, to find
+where the misses come from.
 
 ### 6.7 Performance measurement
 
@@ -483,8 +513,8 @@ A model that meets Q1 overall but fails one slice badly should be visible here.
 
 - **Synthetic ≠ real.** Real users are more varied and more adversarial than
   generated data. Results are an upper bound on real-world quality.
-- **The positive rate is assumed.** Implied precision is a scenario, not a
-  measurement.
+- **The positive rate is unknown.** Precision at deployment can't be measured until
+  labeled production traffic exists.
 - **Adversaries adapt.** Evasion tactics shift over time, so a fixed test set
   measures a snapshot. P4's drift monitoring is the partial mitigation.
 
@@ -575,8 +605,8 @@ Real production labels aren't available, so quality is watched two ways:
 
 ### 10.2 Open questions
 
-- **Real-world positive rate (π).** Unknown; implied precision is reported at
-  0.1% and 1% as scenarios.
+- **Real-world positive rate.** Unknown, so precision isn't reported (§6.3). Revisit
+  with labeled production traffic.
 - **In-game identifiers.** Is sharing an in-game username (on-platform) acceptable?
   Current assumption: yes, only off-platform contact is targeted. Needs to be
   fixed in the labeling guidelines.
