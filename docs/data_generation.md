@@ -18,8 +18,7 @@ control over values, obfuscation, and tags from code.
  "group chat,  ──> claude -p writes  ──>  parse JSON, check ──> replace slots with ──>  one model
   4 speakers,      20 conversations       labels, slots, no     fake values; some       input per
   phone/split"     with slots + labels    leaked real values    disguised               message
-                                                                                        (Step 4)
- generate.py       llm_backend.py         generate.py           fill.py                 context.py
+ generate.py       llm_backend.py         generate.py           fill.py                 assembly/
 ```
 
 1. **Spec.** For each conversation, `generate.py` samples what it should look like: DM or
@@ -42,8 +41,9 @@ control over values, obfuscation, and tags from code.
    fills 1-2 also disguise each contact value with 20% probability (`primitives/obfuscate.py`) and update the
    tags to `obfuscated`. All fills share the skeleton's id, so they always land in the same
    train/val/test split.
-5. **Scoring rows** (Step 4, not built yet). Every message of every filled conversation becomes
-   one model input via the context builder: earlier messages as context, the message as target.
+5. **Assembly** (`assembly/build.py`, below). Fills, real CONDA chat, and spliced
+   conversations are split into train/val/test, and every message becomes one model input via
+   the context builder: earlier messages as context, the message as target.
 
 **Where labels come from:** the LLM labels each message in step 2, because it knows what it
 meant each message to be. Code corrects tags only by fixed rules (step 3) and sets the
@@ -73,9 +73,47 @@ uv run python -m modeling.data.skeletons.preview  --out data/pilot --fills 3    
 |---|---|---|
 | `raw/<batch>.json` | Log of one LLM call: the specs sent, the LLM's response text exactly as returned, model, duration, token counts, rejected conversations and why, tags fixed by rule | Debugging and auditing generation |
 | `skeletons/<batch>.jsonl` | The validated conversations from that response, one per line, slots unfilled | **The data**; input to filling |
-| `conversations.jsonl` | Every fill of every skeleton (slots filled) | Mock dataset; becomes the dataset in Step 4 |
+| `conversations.jsonl` | Every fill of every skeleton (slots filled) | Preview only; the real dataset comes from assembly (below) |
 | `preview.md` | Each skeleton, its fills, and the model's view of one fill | Human review |
 
 `raw/` holds the full response too, not just the specs; `skeletons/` is the parsed, validated
 subset of it. A batch whose skeleton file already exists is skipped, so an interrupted run
 resumes where it stopped.
+
+## Dataset assembly
+
+`assembly/build.py` turns the skeletons into the train/val/test tables. Deterministic for a seed.
+
+```
+uv run python -m modeling.data.assembly.build --skeletons data/skeletons_v1/skeletons --out data/dataset_v1
+```
+
+1. **Split, then fill.** Each skeleton is assigned a split by a stable hash of its id
+   (65/15/20 train/val/test), then filled 3 times. All fills of a skeleton share its split.
+2. **CONDA** (`assembly/conda.py`). Real Dota 2 match chat ([CONDA](https://huggingface.co/datasets/Matrix430/CONDA),
+   AFL-3.0; downloaded on first use), all labeled negative. One match = one group
+   conversation. CONDA has no player ids, so speakers are assigned at random (adjacent
+   utterances always differ). Matches with a URL, email, or 7+ digit run are dropped as
+   possible real contact info. Matches are split 40/20/40, weighted to test, which needs
+   ≥ 50k negatives.
+3. **Splice** (`assembly/splice.py`). In 30% of each split's CONDA matches, the positive part
+   of a skeleton from the same split (an extra fill) is inserted at a random point, so
+   positives also appear inside real chat. The game topic can clash with the host match.
+4. **Rows** (`assembly/rows.py`). One scoring row per message, with token counts from the real
+   `bert-base-uncased` tokenizer. Rows with an identical (context, target) within a split are
+   de-duplicated (fills repeat every message without a slot); identical inputs with
+   conflicting labels would be dropped (there are none).
+5. **Audit** (`assembly/audit.py`). Sizing targets (design doc §6.1), slice counts (§6.6),
+   leakage (group overlap, exact inputs shared with train, near-duplicate skeletons by word
+   5-gram Jaccard), rule checks, and `manual_review.csv`: a stratified sample of about 220 val
+   rows with empty reviewer columns. Test is never sampled for review.
+
+| Output (under `--out`) | Contents |
+|---|---|
+| `conversations/{split}.jsonl` | Every conversation, with per-message labels |
+| `rows/{split}.parquet` | `ScoringRow`s: the model's tables |
+| `audit.md`, `audit.json` | The audit report |
+| `manual_review.csv` | Rows to label by hand; compare with `label` |
+
+Train keeps its natural positive rate (~11%); class balancing happens in the training
+sampler, not by duplicating rows.
