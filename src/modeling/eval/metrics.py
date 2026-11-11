@@ -159,10 +159,12 @@ class Metrics:
 
 
 def is_hard_positive(label: int, hard_tags: Sequence[str]) -> bool:
-    return label == 1 and bool(Q2_HARD_TAGS & set(hard_tags))
+    """A positive with at least one Q2 tag (obfuscated or cross_message)."""
+    return label == 1 and any(tag in Q2_HARD_TAGS for tag in hard_tags)
 
 
 def is_lookalike_negative(label: int, neg_type: str | None) -> bool:
+    """A negative whose type is one of the Q3 look-alike types."""
     return label == 0 and neg_type in Q3_NEG_TYPES
 
 
