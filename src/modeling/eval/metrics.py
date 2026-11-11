@@ -100,23 +100,33 @@ def choose_threshold(scores: Sequence[float], labels: Sequence[int], max_fpr: fl
                            #1    #2    #3
                                        ^ the (K+1)-th highest
 
-    Flagging anything at or below the (K+1)-th highest negative score would flag at least
-    K+1 negatives (too many). So the threshold sits just above it: the next float after
-    0.95 here. That flags every negative scoring above 0.95 (#1, #2: at most K of them;
-    fewer if some tie with #3) and every positive scoring above 0.95.
+    The K negatives we can afford to flag are the top K (#1, #2). The (K+1)-th highest (#3)
+    is the first we can't afford, so the threshold sits just above its score: the next float
+    after 0.95 here. With 0-based indexing, #3 is `negative_scores[K]`, which is why K is
+    used directly as the index.
 
-    Edge cases: if K >= N (the budget covers every negative), everything is flagged
-    (threshold -inf). If there are no negatives, raises.
+    Flagged = score >= threshold, so this flags every negative scoring above 0.95 (#1, #2:
+    at most K of them; fewer if some tie with #3) and every positive scoring above 0.95.
+    Any lower threshold would also flag #3, i.e. K+1 negatives: over budget.
     """
+    if not 0 <= max_fpr < 1:
+        raise ValueError(f"max_fpr must be in [0, 1), got {max_fpr}")
     scores = np.asarray(scores, dtype=np.float64)
     labels = np.asarray(labels)
-    negative_scores = np.sort(scores[labels == 0])[::-1]  # high to low
+
+    # Negative scores, highest first.
+    negative_scores = np.sort(scores[labels == 0])[::-1]
     n_neg = len(negative_scores)
     if n_neg == 0:
         raise ValueError("can't set an FPR threshold without negatives")
-    allowed = math.floor(max_fpr * n_neg + 1e-9)  # K; the epsilon absorbs float error
-    if allowed >= n_neg:
-        return -math.inf
+
+    # K = the max number of false positives (flagged negatives) the budget allows. Always
+    # < n_neg because max_fpr < 1. The tiny epsilon guards against float error when max_fpr
+    # was itself computed as k/n (the baseline's FPR): (37 / 37018) * 37018 is
+    # 36.99999999999999 in floating point, which would floor to 36 instead of 37.
+    allowed = math.floor(max_fpr * n_neg + 1e-9)
+
+    # Just above the (K+1)-th highest negative score.
     return float(np.nextafter(negative_scores[allowed], math.inf))
 
 

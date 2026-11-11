@@ -59,8 +59,10 @@ def test_threshold_with_tied_negatives_flags_fewer_rather_than_too_many():
 
 
 def test_threshold_edge_cases():
-    # Budget covers every negative -> flag everything.
-    assert choose_threshold([0.1, 0.2, 0.9], [0, 0, 1], max_fpr=1.0) == -math.inf
+    # max_fpr outside [0, 1) is rejected.
+    for bad in (1.0, 1.5, -0.1):
+        with pytest.raises(ValueError, match="max_fpr"):
+            choose_threshold([0.1, 0.2, 0.9], [0, 0, 1], max_fpr=bad)
     # Zero budget -> just above the highest negative.
     t = choose_threshold([0.1, 0.7, 0.9], [0, 0, 1], max_fpr=0.0)
     assert 0.7 < t <= 0.9
