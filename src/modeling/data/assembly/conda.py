@@ -19,7 +19,7 @@ How it becomes Conversations:
 - A keyword scan of the remaining messages (platform names, "add me", "phone", "email", ...)
   was read by hand; matches with a message that is positive under our guidelines are listed in
   REVIEWED_POSITIVE_MATCHES and dropped too. Positives without such keywords may remain; the
-  rate looks very low (5 found in ~60k messages).
+  rate looks very low (6 found in ~60k messages).
 """
 
 from __future__ import annotations
@@ -41,6 +41,7 @@ LINE_SEPARATOR = "[SEPA]"
 # scan of the screened data (match id: the message).
 REVIEWED_POSITIVE_MATCHES = {
     "358": "wat is ur facebook",
+    "482": "sad life brah come add me on steam",  # Steam is off-platform (guidelines §6.2)
     "1228": "do u guys have a twitter??",
     "1438": "add me on tidner",
     "1778": "follow me on instagram ...",

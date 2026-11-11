@@ -94,7 +94,7 @@ uv run python -m modeling.data.assembly.build --skeletons data/skeletons_v1/skel
    AFL-3.0; downloaded on first use), all labeled negative. One match = one group
    conversation. CONDA has no player ids, so speakers are assigned at random (adjacent
    utterances always differ). Matches with a URL, email, or 7+ digit run are dropped as
-   possible real contact info, plus 5 matches found positive by hand-reading a keyword scan
+   possible real contact info, plus 6 matches found positive by hand-reading a keyword scan
    (`REVIEWED_POSITIVE_MATCHES`). Matches are split 40/20/40, weighted to test, which needs
    ≥ 50k negatives.
 3. **Splice** (`assembly/splice.py`). In 30% of each split's CONDA matches, the positive part
