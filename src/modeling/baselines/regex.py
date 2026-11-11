@@ -41,6 +41,9 @@ PLATFORMS = [
     "telegram", "kik", "tiktok", "twitter", "facebook", "messenger", "signal", "skype",
     "twitch", "youtube", "reddit", "wechat", "steam", "xbox", "psn", "epic games",
     "battle.net",
+    # Common abbreviations. Safe because a platform only counts next to an ask/offer phrase
+    # ("add me on sc"), never alone. "dc" is left out: in games it usually means "disconnect".
+    "disc", "disco", "sc", "gram", "yt", "tt", "fb", "tele", "wa",
 ]
 
 LINK_DOMAINS = [

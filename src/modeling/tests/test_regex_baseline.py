@@ -15,6 +15,10 @@ from modeling.baselines.regex import first_match, score_split
     ("whats ur insta", "platform_ask"),
     ("Do You Have Discord?", "platform_ask"),  # lowercased first
     ("follow my twitch pls", "platform_ask"),
+    ("add me on disc", "platform_ask"),
+    ("whats ur disco", "platform_ask"),
+    ("check out my yt", "platform_ask"),
+    ("my sc is jay.22", "platform_offer"),
     ("my snap is jaydenxo", "platform_offer"),
     ("my ig: cool.kid", "platform_offer"),
     ("snap me later", "platform_offer"),
@@ -32,6 +36,8 @@ def test_rules_catch_their_examples(text, rule):
     "oh snap",  # platform word alone isn't flagged
     "cold snap kid",
     "discord is down again",
+    "nice fb",  # first blood: abbreviation alone isn't flagged
+    "u got dc again",  # disconnect
     "i saw it on youtube",
     "you have epic loot",
     "add me ingame",  # on-platform friend add
