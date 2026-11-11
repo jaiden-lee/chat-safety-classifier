@@ -619,3 +619,5 @@ Real production labels aren't available, so quality is watched two ways:
   change the cost model: precision and score calibration would then matter
   (§6.2). Out of scope now; noted for future work.
 ## Results (TBD)
+
+See [results.md](results.md).
