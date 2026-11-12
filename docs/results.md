@@ -67,5 +67,5 @@ Where each system catches and misses. A positive can carry more than one hard ta
 |---|---|
 | Dataset | `data/dataset_v1` (val: 41,461 rows, 4,556 positives) — `docs/data_generation.md` |
 | Regex baseline | `src/modeling/baselines/regex.py`, target message only |
-| Model | — |
+| Model | `bert-base-uncased`, full fine-tune, 3 epochs — `src/modeling/notebooks/train_bert.ipynb` |
 | Threshold | — |

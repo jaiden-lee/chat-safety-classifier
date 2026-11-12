@@ -20,7 +20,8 @@ baselines = [
     "presidio-analyzer>=2.2",
     "gliner>=0.2",
 ]
-# Fine-tuning (Step 6). Kaggle images already ship torch; install with `pip install -e .[train]`.
+# Fine-tuning runs in Colab (src/modeling/notebooks/train_bert.ipynb), which ships these.
+# Only needed to run the notebook elsewhere: `pip install -e .[train]`.
 train = [
     "torch>=2.4",
     "transformers>=4.45",

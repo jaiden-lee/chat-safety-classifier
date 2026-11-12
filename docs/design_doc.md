@@ -372,7 +372,7 @@ doesn't use reply or mention structure.
 
 | Set | Purpose | Composition |
 |---|---|---|
-| Train | Fit the model | LLM-written conversations with code-filled contact values, real game chat (CONDA, all negative), and synthetic exchanges spliced into real chat. Positives are **oversampled during training** so the model sees enough of them. |
+| Train | Fit the model | LLM-written conversations with code-filled contact values, real game chat (CONDA, all negative), and synthetic exchanges spliced into real chat. Trained at its natural positive rate (~11%); oversampling positives is the first fix to try if recall falls short. |
 | Validation | Choose the operating threshold and the best checkpoint | Same construction as train, enriched positive rate (~10%), with hard positives and hard negatives represented. |
 | Test | Final, one-time measurement of every Q requirement | Same construction, disjoint skeletons and matches. Never used for tuning. |
 | Hard positives | Q2 | Positives tagged at generation time: **obfuscated** (spacing, substitution, spelled-out numbers, look-alike characters), **cross-message** (request and answer in different messages, possibly different speakers), **implicit** (no telltale keyword). |
